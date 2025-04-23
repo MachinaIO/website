@@ -31,9 +31,27 @@ body {
     margin-bottom: 50px;
 }
 
+/* Logo styling and animation */
+@keyframes logo-click {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.95) rotate(2deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+    }
+}
+
 .logo img {
     max-width: 100px;
     height: auto;
+    transition: transform 0.2s ease;
+}
+
+.logo img:active {
+    animation: logo-click 0.3s ease-in-out;
 }
 
 .nav a {
