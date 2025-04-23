@@ -3,14 +3,23 @@
 generate_post.py
 
 Usage:
-    python generate_post.py example.md output.html
+    python generate_post.py <markdown_file.md> <output.html>
+
+This script converts a markdown file with YAML front matter to HTML and
+integrates it with the blog template.
 """
 
 import sys
 import re
 import yaml
+import datetime
+import os
+from pathlib import Path
+import markdown
+
 
 def parse_markdown(path):
+    """Parse markdown file, extracting YAML front matter and markdown content."""
     text = open(path, 'r', encoding='utf-8').read()
     # Split YAML front-matter
     fm_pattern = r'^---\s*\n(.*?)\n---\s*\n(.*)$'
@@ -27,31 +36,90 @@ def parse_markdown(path):
 
     return fm, body_md
 
-def generate_latex_html():
-    """Generate a simple HTML structure with LaTeX examples."""
-    return """<p>Your article content goes here. Replace this with the actual text for your blog post.</p>
-<p>Add additional paragraphs, images, lists, or other HTML elements as required by your content.</p>
+def convert_markdown_to_html(markdown_content):
+    """Convert markdown content to HTML."""
+    # Initialize markdown converter with extensions for math support
+    md = markdown.Markdown(extensions=['extra'])
+    # Convert markdown to HTML
+    html_content = md.convert(markdown_content)
+    return html_content
 
-<h3>LaTeX Example</h3>
-<p>Here's an example of inline LaTeX: $E = mc^2$ and another one: $\\alpha + \\beta = \\gamma$.</p>
+def read_template(template_path="blog_template.html"):
+    """Read the blog template file."""
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"Error: Template file '{template_path}' not found.")
+        sys.exit(1)
 
-<p>And here's a display equation:</p>
-$$\\int_{a}^{b} f(x) \\, dx = F(b) - F(a)$$"""
-
-def main(md_path, out_path):
-    # Parse the markdown file (we're not using the content, just keeping the function for future use)
-    parse_markdown(md_path)
+def generate_html_from_markdown(md_path, template_path="blog_template.html"):
+    """Generate HTML content from markdown file using the blog template."""
+    # Parse the markdown file
+    front_matter, markdown_content = parse_markdown(md_path)
     
-    # Generate the LaTeX HTML content
-    html_content = generate_latex_html()
+    # Convert markdown to HTML
+    html_content = convert_markdown_to_html(markdown_content)
+    
+    # Read the template
+    template = read_template(template_path)
+    
+    # Get title from front matter or use filename
+    title = front_matter.get('title', Path(md_path).stem)
+    
+    # Get date from front matter or use current date
+    date = front_matter.get('date', datetime.datetime.now().strftime('%Y-%m-%d'))
+    
+    # Replace placeholders in template
+    final_html = template.replace('YOUR POST TITLE HERE', title)
+    final_html = final_html.replace('YYYY-MM-DD', date)
+    
+    # Replace content div with our content
+    # Find the start and end positions of the content div
+    start_tag = '<div class="content">'
+    end_tag = '</div>'
+    
+    start_pos = final_html.find(start_tag)
+    if start_pos == -1:
+        print("Error: Could not find content div in template")
+        sys.exit(1)
+        
+    # Find the closing div after the start position
+    end_pos = final_html.find(end_tag, start_pos)
+    if end_pos == -1:
+        print("Error: Could not find closing div for content")
+        sys.exit(1)
+    
+    # Replace everything between the start and end tags
+    end_pos += len(end_tag)  # Include the end tag in the replacement
+    final_html = final_html[:start_pos] + start_tag + '\n' + html_content + '\n' + end_tag + final_html[end_pos:]
+    
+    return final_html
+
+def main(md_path, out_path, template_path="blog_template.html"):
+    """Main function to generate HTML from markdown and save to output file."""
+    # Generate HTML from markdown
+    html_content = generate_html_from_markdown(md_path, template_path)
     
     # Write the output file
     with open(out_path, 'w', encoding='utf-8') as f:
         f.write(html_content)
-    print(f"Generated LaTeX HTML: {out_path}")
+    
+    print(f"Generated HTML from {md_path}: {out_path}")
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
         print("Usage: python generate_post.py <markdown.md> <output.html>")
         sys.exit(1)
-    main(sys.argv[1], sys.argv[2])
+    
+    md_path = sys.argv[1]
+    out_path = sys.argv[2]
+    
+    # If the markdown file is not in the current directory but just a filename,
+    # check if it exists in the posts directory
+    if not os.path.exists(md_path) and not os.path.dirname(md_path):
+        posts_path = os.path.join("posts", md_path)
+        if os.path.exists(posts_path):
+            md_path = posts_path
+    
+    main(md_path, out_path)
