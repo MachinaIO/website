@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Machina iO - Blog Post</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="../styles.css">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     
     <!-- MathJax for LaTeX support -->
@@ -29,13 +29,13 @@
     <div class="container">
         <div class="header">
             <div class="logo">
-                <a href="index.html">
-                    <img src="logo.png" alt="Machina iO Logo">
+                <a href="../index.html">
+                    <img src="../logo.png" alt="Machina iO Logo">
                 </a>
             </div>
             <div class="nav">
-                <a href="about.html">about</a>
-                <a href="subscribe.html">subscribe</a>
+                <a href="../about.html">about</a>
+                <a href="../subscribe.html">subscribe</a>
             </div>
         </div>
 
@@ -51,6 +51,13 @@
                 
                 <p>And here's a display equation:</p>
                 $$\int_{a}^{b} f(x) \, dx = F(b) - F(a)$$
+
+                $$\begin{align}
+                    \mathbf{c}_{B} &:= \underline{\mathbf{s}^{T}\mathbf{B}} \\
+                    \mathbf{X} &:= \textsf{GSWFHE.Enc}(\mathbf{s}, (\mathbf{x}, \textsf{sd})) \\
+                    \mathbf{c}_{\textsf{att}} &:= \underline{\mathbf{s}^T(\mathbf{A}_{\textsf{att}} - \textsf{bits}(1,\mathbf{X})\otimes G)} \\
+                    \textsf{ct} &:= (\mathbf{c}_{B}, \mathbf{X}, \mathbf{c}_{\textsf{att}})
+                \end{align}$$
             </div>
         </div>
     </div>

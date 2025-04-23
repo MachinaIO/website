@@ -10,13 +10,13 @@ open index.html
 pip install markdown2 pyyaml
 ```
 
-1. Write the blogpost on HackMD
-2. From HackMD, download the file to markdown. For example, `example.md`.
-3. Run `python3 generate_post.py example.md output.html` to clean up the HTML file. This will generate a new file `output.html` with the cleaned up HTML.
-4. Duplicate the `blogpost_template.md` file and rename it to `title.md`, modify the `post-title` and `post-date`. 
-5. Copy the content of `output.html` into the `<div class="content">` class of `title.md`.
-6. Add the new post inside the `<div class="article-list">` in `index.html` file, with the correct date and title
-7. Double check the correctness of the HTML:
+1. Write the blogpost in markdown format and add it inside the posts folder. For example, `posts/example.md`. Make sure that all your latex format are inside `$` or `$$` for inline and block latex respectively. 
+2. Run `python3 generate_post.py posts/example.md posts/output.html` to generate a HTML file with proper latex formatting.
+3. Duplicate the `post_template.html` file and rename it to `your_title.html`. Inside the file modify the `<div class="post-title">` and `<div class="post-date">`. 
+4. Copy the content of `output.html` into the `<div class="content">` class of `your_title.html`.
+5. Add the new post inside the `<div class="article-list">` in `index.html` file, with the correct date and title
+6. Double check the correctness of the newly added blogpost:
     - Check the links
     - Check the images (these are not automatically imported from HackMD)
     - Check the Latex formatting
+7. Delete the `output.html` file and the original markdown file.

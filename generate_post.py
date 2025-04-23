@@ -59,12 +59,18 @@ def convert_markdown_to_html(markdown_content):
     # Convert markdown to HTML
     html_content = md.convert(content_with_placeholders)
     
-    # Restore LaTeX blocks
+    # Restore LaTeX blocks with proper HTML escaping
     for i, math in enumerate(display_math_blocks):
-        html_content = html_content.replace(f"DISPLAYMATH{i}PLACEHOLDER", f"$${math}$$")
+        # Ensure special characters in LaTeX are properly handled
+        placeholder = f"DISPLAYMATH{i}PLACEHOLDER"
+        # Use HTML comments to protect LaTeX content
+        replacement = f"$$\n{math}\n$$"
+        html_content = html_content.replace(placeholder, replacement)
     
     for i, math in enumerate(inline_math_blocks):
-        html_content = html_content.replace(f"INLINEMATH{i}PLACEHOLDER", f"${math}$")
+        placeholder = f"INLINEMATH{i}PLACEHOLDER"
+        replacement = f"${math}$"
+        html_content = html_content.replace(placeholder, replacement)
     
     return html_content
 

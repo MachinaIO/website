@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machina iO - Blog Post</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    
+    <!-- MathJax for LaTeX support -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Configure MathJax -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <a href="../index.html">
+                    <img src="../logo.png" alt="Machina iO Logo">
+                </a>
+            </div>
+            <div class="nav">
+                <a href="../about.html">about</a>
+                <a href="../subscribe.html">subscribe</a>
+            </div>
+        </div>
+
+        <div class="post">
+            <div class="post-title">BGG</div>
+            <div class="post-date">2025-04-23</div>
+            <div class="content">
+                <p><em>Notes related to BGG+ Key Homomorphism implementation</em></p>
+                <ul>
+                <li>The core logic of the RLWE implmentation of BGG+ is defined in [DDP+17], including how to choose the parameters</li>
+                <li>The BGG+ implmentation is meant to support the pseudorandom functional encryption construction described in [AKY24a]. Compared to [DDP+17] we won't build any ABE scheme on top of the BGG+ Key Homomorphism logic</li>
+                </ul>
+                <h3>APIs</h3>
+                <ul>
+                <li><code>m_eval_c(a_att, c) = a_c</code> <ul>
+                <li>described in pag.22 of [AKY24a]  </li>
+                <li>used in KeyGen phase</li>
+                </ul>
+                </li>
+                <li><code>m_eval_cx(a_att, c, x) = h_cx</code><ul>
+                <li>described in pag.22 of [AKY24a]  </li>
+                <li>used in Dec phase</li>
+                </ul>
+                </li>
+                <li><code>encode_input</code> <ul>
+                <li>described in pag.30 of [AKY24a]</li>
+                <li>used in Enc phase </li>
+                </ul>
+                </li>
+                </ul>
+                <h3>Review of the FE scheme in [AKY24a]</h3>
+                <p><em>Extending Sora's <a href="https://hackmd.io/@SoraSuegami/rysHb6KN1x">doc</a></em></p>
+                <p>The FE scheme defines a ciphertext for an input $\mathbf{x}$ as follows:</p>
+                <p>$$
+                \begin{align}
+                    \mathbf{c}_{B} &:= \underline{\mathbf{s}^{T}\mathbf{B}} \\
+                    \mathbf{X} &:= \textsf{GSWFHE.Enc}(\mathbf{s}, (\mathbf{x}, \textsf{sd})) \\
+                    \mathbf{c}_{\textsf{att}} &:= \underline{\mathbf{s}^T(\mathbf{A}_{\textsf{att}} - \textsf{bits}(1,\mathbf{X})\otimes G)} \\
+                    \textsf{ct} &:= (\mathbf{c}_{B}, \mathbf{X}, \mathbf{c}_{\textsf{att}})
+                \end{align}
+                $$</p>
+                <p>where $\mathbf{s}$ is a secret key for all of the above three ciphertexts/encodings, $B$ and $A_{\textsf{att}}$ are public matrixes, $\textsf{sd}$ is a seed of PRF, and the underlined terms contain LWE errors. $\mathbf{c}_{\textsf{att}}$ is a BGG+ encoding using the FHE ciphertext as attribute, while $\mathbf{c}_{B}$ is an auxiliary ciphertext that will become useful during the decryption phase.</p>
+                <p>There are two deterministic algorithms to modify the encoding $\mathbf{c}_{\textsf{att}}$ for $(1,\mathbf{X}) \in \{0,1\}^{L_x}$ to one for $F(1,\mathbf{X})$, where $F$ is a matrix-valued circuit $F: \{0,1\}^{L_x} \rightarrow Z_q^{n^{\prime} \times m}$. These two algorithms are defined as follows:
+                $$
+                \begin{align}
+                    &\textsf{MEvalC}(\mathbf{A_{\textsf{att}}}, F) \rightarrow \mathbf{H}_{F} \\
+                    &\textsf{MEvalCX}(\mathbf{A_{\textsf{att}}}, F, \mathbf{X}) \rightarrow \mathbf{H}_{F,\mathbf{X}}
+                \end{align}
+                $$</p>
+                <p>They satisfy the below equation for any $F$ and an input $\mathbf{X}$, where $\mathbf{A}_{F}:=\mathbf{A}_{\textsf{att}}\mathbf{H}_{F}$.</p>
+                <p>$$
+                (\mathbf{A}_{\textsf{att}} - (1,\mathbf{X}^T)\otimes G)\mathbf{H}_{F,\mathbf{X}} = \mathbf{A}_{F} - F(\mathbf{X}) \tag{1}
+                $$</p>
+                <p>Notably, by embedding a homomorphic evaluation algorithm of FHE into $F$, it can output the FHE encryption of an output for a vector-valued circuit $f: \{0,1\}^{L_x} \rightarrow Z_q^{\ell}$. For example, when $F(1,\mathbf{X}):=\textsf{GSWFHE.Eval}(f, \mathbf{X})$, and $\mathbf{X}$ is the FHE encryption of $\mathbf{x}$, the following holds:
+                $$
+                \begin{align}
+                    &\underline{\mathbf{s}^T(\mathbf{A}_{\textsf{att}} - \textsf{bits}(1,\mathbf{X})\otimes G)} \mathbf{H}_{F,\mathbf{X}} \\
+                    =&\underline{\mathbf{s}^T\mathbf{A}_{F} - \mathbf{s}^T \textsf{GSWFHE.Enc}(f(x))} \\
+                    =&\underline{\mathbf{s}^T\mathbf{A}_{F} - f(x)}
+                \end{align}
+                $$</p>
+                <p>(Formally, the last expression additionally includes the output of $\textsf{PRF}(\textsf{sd},r)$ for the given $\textsf{sd}$ and the fixed point $r$ to mask the LWE errors. However, we omit it here for simplicity.)</p>
+                <p>The second and third expressions are approximately equivalent because $\mathbf{s}^T \textsf{GSWFHE.Enc}(f(x))$ corresponds to the noisy decryption, i.e., $\mathbf{s}^T \textsf{GSWFHE.Enc}(f(x))=f(x) + \mathbf{e}$. If a vector $\underline{\mathbf{s}^TA_{F}}$ is provided, anyone can recover $f(x)$ by removing this vector from the last expression. However, no one can learn the evaluation result for a function $f^{\prime} \neq f$ because $\mathbf{A}_F$ depends on the evaluated function $f^{\prime}$, and the vector corresponding to $\mathbf{s}^T\mathbf{A}_{F}$ after evaluating the wrong function $f^{\prime}$ cannot be removed. In the FE scheme in [AKY24b], a matrix $\mathbf{B}^{-1}(\mathbf{A}_F)$ is provided as $\textsf{fsk}$ so that $\mathbf{c}_{B}\mathbf{B}^{-1}(\mathbf{A}_F)=\underline{\mathbf{s}^T\mathbf{A}_{F}}$ can be derived. In particular, the matrix $\mathbf{B}^{-1}$ is trapdoor for $\mathbf{B}$ that allows to compute short preimages $\mathbf{B}^{-1}(\mathbf{U})$ for any target matrix $\mathbf{U}$ such that $\mathbf{B} \mathbf{B}^{-1}(\mathbf{U}) = \mathbf{U}$. Here's how the trapdoor can be used to recover the masking term $\underline{\mathbf{s}^TA_{F}}$ necessary to recover $f(x)$:</p>
+                <p>$$
+                \begin{align}
+                    &\mathbf{c}_{B}\mathbf{B}^{-1}(\mathbf{A}_F) \\
+                    =&\underline{\mathbf{s}^T\mathbf{B} \space \mathbf{B}^{-1}(\mathbf{A}_F)}  \\
+                    =&\underline{\mathbf{s}^T\mathbf{A}_{F}}
+                \end{align}
+                $$</p>
+                <p>The above automatic and restricted decryption plays a significant role both in that FE scheme and our iO scheme.</p>
+                <p>Here (https://share.goodnotes.com/s/8yJDAGWyfK6uvXdjyJViAn) you can find more detailed information about the data structures involved in the RLWE version of BGG+ encoding and its core apis for encoding an attribute vector $\mathbf{x}$ and performing homomorphic operation over the public key ($\textsf{MEvalAdd}$ and $\textsf{MEvalMul}$) and over the input encoding ($\textsf{MEvalAddX}$ and $\textsf{MEvalMulX}$)</p>
+                <h3>Circuits</h3>
+                <p>I've now been able to encode a single gate (either multiplication or addition) between two inputs and verify that the following matrix homomorphism holds:</p>
+                <p>$$
+                (\mathbf{A}_{1} - x_1G| \mathbf{A}_{2} - x_2G) \mathbf{H}_{+,\mathbf{X}} = \mathbf{A}_{+} - (x_1 + x_2) G
+                $$</p>
+                <p>$$
+                (\mathbf{A}_{1} - x_1G| \mathbf{A}_{2} - x_2G) \mathbf{H}_{x,\mathbf{X}} = \mathbf{A}_{x} - (x_1x_2) G
+                $$</p>
+                <p>where $\mathbf{H}_{+,\mathbf{X}}$ and $\mathbf{H}_{\times,\mathbf{X}}$ are the output of $\textsf{MEvalAddX}(1, 2)$ and $\textsf{MEvalMulX}(1,2)$ and $\mathbf{A}_{+}$ and $\mathbf{A}_{\times}$ are the output of $\textsf{MEvalAdd}(1, 2)$ and $\textsf{MEvalMul}(1,2)$. Now it's time to extend it to support more complicated circuits, that can have multiple gates and multiple outputs. More specifically, each gate has a matrix $\mathbf{H}$ and a matrix $\mathbf{A}$ associated to that: how can we compose these matrices together to get to $\mathbf{H}_{F,\mathbf{X}}$ and $\mathbf{A}_{F}$?</p>
+                <p>The core idea is the following. For each gate (including the input values) we store an object containing the value $x$ associated with that, the $A$ matrix and the $H$ matrix. Let us consider this very simple circuit.</p>
+                <p><img alt="Screenshot 2025-01-20 at 09.12.41" src="https://hackmd.io/_uploads/HyBKSKsP1e.png" /></p>
+                <p>The (input) gate 1 has associated with that, the assigned value to $x_1$, $\mathbf{A}_{1}$ and $\mathbf{H}_{1}$, which is defined as the matrix (associated with each gate) that when multiplied by the attribute input encoding $\mathbf{C} =(\mathbf{A}_{\textsf{att}} - (1,\mathbf{X}^T)\otimes G)$ returns the encoding of the value associated to that gate (in this case,  $x_1$) such as: </p>
+                <p>$$
+                \begin{bmatrix}
+                 \emptyset \\
+                \mathbf{I} \\
+                \emptyset \\
+                ...\\
+                \emptyset
+                \end{bmatrix}
+                $$</p>
+                <p>The $\mathbf{H}$ matrix associated with each gate is the vertical concatenation of $\ell + 1$ sub-matrices where each one has sizes $m \times m$. Note that the first sub-matrix of the concatenation will be always empty. For the inputs, the corresponding $\mathbf{H}$ matrix contains an identity sub-matrix $\mathbf{I}$ at the vertical index corresponding to the input index. All the other vertifcal indices are occupied by empty sub-matrices. Now let's see how to perform an addition gate. We define $\mathbf{C}_i$ as the encoding of the value corresponding to the $i$-th gate $x_i$ such that $\mathbf{C}_i = \mathbf{A}_{i} - x_iG$. </p>
+                <p>$$
+                \begin{align}
+                    (\mathbf{C}_1 | \mathbf{C}_2) \begin{bmatrix}
+                \mathbf{I} \\
+                \mathbf{I}
+                \end{bmatrix} = &\mathbf{C}_4 \\
+                    \mathbf{C}_1 \mathbf{I} + \mathbf{C}_2 \mathbf{I} = &\mathbf{C}_4  \\
+                    \mathbf{C}\mathbf{H}_{1}\mathbf{I} + \mathbf{C}\mathbf{H}_{2}\mathbf{I}= &\mathbf{C}_4 \\
+                        \mathbf{C} (\mathbf{H}_{1}\mathbf{I} + \mathbf{H}_{2}\mathbf{I})= &\mathbf{C}_4 \\
+                        \mathbf{C} \mathbf{H}_{4} = &\mathbf{C}_4
+                \end{align}
+                $$</p>
+                <p>The core idea is to see the encdoing of the output of an addition gate as a linear combination between the concatenation of the two inputs encoding and a vertical matrix. We informally refers to the two submatrix in the vertical matrix as "scalars". It follows that the $\mathbf{H}_4$ matrix corresponding to the output of an addition gate is equal to the linear combination between the $\mathbf{H}_1$ and $\mathbf{H}_2$ matrices of the inputs using the two submatrices as "scalars". The $\mathbf{A}_4$ matrix associated with that gate can be obtained as $\mathbf{A}_4 = \mathbf{A}_1 + \mathbf{A}_2$, while $x_4 = x_1 + x_2$. </p>
+                <p>Now let's see how to proceed with the multiplication gate. In this case the linear multiplication works as follows:</p>
+                <p>$$
+                \begin{align}
+                    (\mathbf{C}_4 | \mathbf{C}_3) \begin{bmatrix}
+                \mathbf{I}(x_3) \\
+                G^{-1}(\mathbf{A}_4)
+                \end{bmatrix} = &\mathbf{C}_4 \\
+                    \mathbf{C}_4 \mathbf{I}(x_3) + \mathbf{C}_3 G^{-1}(\mathbf{A}_4) = &\mathbf{C}_4  \\
+                    \mathbf{C}\mathbf{H}_{4}\mathbf{I}(x_3) + \mathbf{C}\mathbf{H}_{3}G^{-1}(\mathbf{A}_4)= &\mathbf{C}_4 \\
+                        \mathbf{C} (\mathbf{H}_{4}\mathbf{I}(x_3) + \mathbf{H}_{3}G^{-1}(\mathbf{A}_4))= &\mathbf{C}_4 \\
+                        \mathbf{C} \mathbf{H}_{5} = &\mathbf{C}_4
+                \end{align}
+                $$</p>
+                <p>The $\mathbf{A}_5$ matrix associated with that gate can be simply obtained as $\mathbf{A}_5 = \mathbf{A}_3  G^{-1}(\mathbf{A}_4)$, while $x_4 = x_1 + x_2$. We can now rewrite the matrix homomorphism verification as described in equation $(1)$ for our circuit $F$ as follows:</p>
+                <p>$$
+                (\mathbf{A}_{\textsf{att}} - (1,\mathbf{X}^T)\otimes G)\mathbf{H}_{5} = \mathbf{A}_{5} - x_5G
+                $$</p>
+                <h3>Optimization problem</h3>
+                <p>Each gate requires the following operations:</p>
+                <ol>
+                <li>Calculate the lhs and rhs "scalars".<ul>
+                <li>for addition: $k_{LHS, +} = \mathbf{I}$ and $k_{RHS, +} =\mathbf{I}$</li>
+                <li>for multiplication: $k_{LHS, \times} =\mathbf{I}(x_{RHS})$ and $k_{RHS, \times} = G^{-1}(\mathbf{A}_{LHS})$ for multiplication</li>
+                </ul>
+                </li>
+                <li>Multiply lhs scalar with the lhs gate matrix $\mathbf{H}_{LHS}$ and the rhs scalar with rhs gate matrix $\mathbf{H}_{RHS}$</li>
+                <li>Add the two resulting matrix together to produce the gate matrix for the output $\mathbf{H}_{OUT}$</li>
+                </ol>
+                <p>The most expensive operation is the multiplication between the rhs gate matrix $\mathbf{H}_{RHS}$ of size $(l+1)m \times m$ and the rhs multiplication scalar $k_{RHS, \times}$ of size $m \times m$. </p>
+                <p>In particular, it requires to perform $(l+1)m^2$ vector dot products, where each vector dot product involves $m$ multiplication between two polynomials in a ring of size $n$. So in total it requires $(l+1)m^3$ polynomial multiplication. How can we fix that? </p>
+                <p><strong>A.</strong> </p>
+                <p>Alternative apporach to circuit design that doesn't keep track of a big $\mathbf{H}$ matrix of sizes $(l+1)m \times m$ for each gate. I noticed that in the construction proposed by [AKY24a], the matrix $\mathbf{H}_{F,\mathbf{X}}$, which is the result of $\textsf{MEvalCX}$, might not be necessary. In the construction, such matrix is computed during the decryption phase and, then, multiplied with $\mathbf{c}_{\textsf{att}}^T$, which is published by the encryptor, which results in $\mathbf{c}_{\textsf{out}}$, namely the encoding of the output of the circuit $F$. Therefore, we can modify the function $\textsf{MEvalCX}$ to directly reutrn $\mathbf{c}_{\textsf{out}}$ instead. Note that this how the function $\textsf{Eval}_{ct}$ is defined in the original BGG+ paper.</p>
+                <p>Let us consider the cost of the multiplication gate in this case.</p>
+                <p>$$
+                \begin{align}
+                    (\mathbf{C}_{LHS} | \mathbf{C}_{RHS}) \begin{bmatrix}
+                \mathbf{I}(x_{RHS}) \\
+                G^{-1}(\mathbf{A}_{LHS})
+                \end{bmatrix} = &\mathbf{C}_{OUT} \\
+                    \mathbf{C}_{LHS} \mathbf{I}(x_{RHS}) + \mathbf{C}_{RHS} G^{-1}(\mathbf{A}_{LHS}) = &\mathbf{C}_{OUT}  
+                \end{align}
+                
+                $$</p>
+                <p>This involes two multiplications between a vector of size $m$ and a multiplication "scalar" of size $m \times m$. Each multiplication requires $m$ vector dot products, where each vector dot product involves $m$ multiplication between two polynomials in a ring of size $n$. So in total it requires $m^2$ polynomial multiplication. </p>
+                <p><strong>B.</strong> </p>
+                <p>GPU Parallelization; all the vector dot products (and, potentially, even all the polynomial multiplication) can be run in parallel</p>
+                <p><strong>C.</strong> </p>
+                <p>More efficient polynomial mul implementation</p>
+                <h3>Open Questions</h3>
+                <ul>
+                <li>[x] How replacing a matrix (LWE) by a vector of polynomials (RLWE) makes the algorithm more efficient? Isn't it the same thing in terms of sizes?</li>
+                <li>[x] Can we safely match the [AKY24a] LWE notation with the [DDP+17] RLWE matrix ? Why in the first one we use "minus" and in the second one we use "plus"?</li>
+                <li>[x] I think there's an error at page 9 of [DDP+17] on line 4 of algorithm 4 as $e_A^T$ should not be transposed, otherwise the sizes for the vector to matrix multiplication do not match</li>
+                <li>[x] How can I test MEvalC and MEvalCX?</li>
+                <li>[x] About the circuit definition for MEval, is the evaluation gate always taking all the $\ell$ matrices as input, or can it be that the addition has to be performed, for example, between matrix 1 and matrix 3? </li>
+                </ul>
+                <h3>References</h3>
+                <ul>
+                <li>AKY24a https://eprint.iacr.org/2024/1719.pdf</li>
+                <li>BGG+14 https://eprint.iacr.org/2014/356.pdf</li>
+                <li>DDP+17 https://eprint.iacr.org/2017/601.pdf</li>
+                </ul>
+                <h3>Further resources on RLWE variant of GSW encryption</h3>
+                <ul>
+                <li>https://eprint.iacr.org/2014/838.pdf </li>
+                <li>https://heat-h2020-project.blogspot.com/2015/06/ring-gsw.html</li>
+                </ul>
+    </div>
+</body>
+</html>
