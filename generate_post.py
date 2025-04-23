@@ -38,10 +38,36 @@ def parse_markdown(path):
 
 def convert_markdown_to_html(markdown_content):
     """Convert markdown content to HTML."""
-    # Initialize markdown converter with extensions for math support
+    # Preserve LaTeX blocks before markdown conversion
+    # Save display math blocks ($$...$$)
+    display_math_blocks = []
+    def save_display_math(match):
+        display_math_blocks.append(match.group(1))
+        return f"DISPLAYMATH{len(display_math_blocks)-1}PLACEHOLDER"
+    
+    # Save inline math blocks ($...$)
+    inline_math_blocks = []
+    def save_inline_math(match):
+        inline_math_blocks.append(match.group(1))
+        return f"INLINEMATH{len(inline_math_blocks)-1}PLACEHOLDER"
+    
+    # Replace LaTeX blocks with placeholders
+    content_with_placeholders = re.sub(r'\$\$(.*?)\$\$', save_display_math, markdown_content, flags=re.DOTALL)
+    content_with_placeholders = re.sub(r'\$([^\$]+?)\$', save_inline_math, content_with_placeholders)
+    
+    # Initialize markdown converter with extensions
     md = markdown.Markdown(extensions=['extra'])
+    
     # Convert markdown to HTML
-    html_content = md.convert(markdown_content)
+    html_content = md.convert(content_with_placeholders)
+    
+    # Restore LaTeX blocks
+    for i, math in enumerate(display_math_blocks):
+        html_content = html_content.replace(f"DISPLAYMATH{i}PLACEHOLDER", f"$${math}$$")
+    
+    for i, math in enumerate(inline_math_blocks):
+        html_content = html_content.replace(f"INLINEMATH{i}PLACEHOLDER", f"${math}$")
+    
     return html_content
 
 def read_template(template_path="blog_template.html"):
