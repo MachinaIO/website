@@ -84,14 +84,23 @@ def generate_html_from_markdown(md_path, template_path="blog_template.html"):
     # Parse the markdown file
     front_matter, markdown_content = parse_markdown(md_path)
     
+    # Get title from front matter or use filename
+    title = front_matter.get('title', Path(md_path).stem)
+    
+    # Remove duplicate title from markdown content if it exists
+    # Check if the markdown content starts with a heading that matches the title
+    title_pattern = re.compile(r'^#\s*(.*?)\s*$', re.MULTILINE)
+    first_heading_match = title_pattern.search(markdown_content)
+    
+    if first_heading_match and first_heading_match.group(1).strip() == title.strip():
+        # Remove the first heading if it matches the title
+        markdown_content = title_pattern.sub('', markdown_content, count=1).strip()
+    
     # Convert markdown to HTML
     html_content = convert_markdown_to_html(markdown_content)
     
     # Read the template
     template = read_template(template_path)
-    
-    # Get title from front matter or use filename
-    title = front_matter.get('title', Path(md_path).stem)
     
     # Get date from front matter or use current date
     date = front_matter.get('date', datetime.datetime.now().strftime('%Y-%m-%d'))
