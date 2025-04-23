@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscribe - Machina iO</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <a href="index.html">
+                    <img src="logo.png" alt="Machina iO Logo">
+                </a>
+            </div>
+            <div class="nav">
+                <a href="about.html">about</a>
+                <a href="subscribe.html">subscribe</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <p>Stay informed with Machina iO's latest research</p>
+            
+            <form id="subscribe-form" class="subscribe-form">
+                <div class="form-group">
+                    <input type="email" id="email" name="email" required placeholder="your@email.com">
+                </div>
+                <button type="submit" class="submit-btn">Subscribe</button>
+            </form>
+            
+            <div id="success-message" class="success-message" style="display: none;">
+                Thank you for subscribing!
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('subscribe-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // In a real implementation, you would send the email to your server here
+            // For now, we'll just show a success message
+            const email = document.getElementById('email').value;
+            console.log('Email submitted:', email);
+            
+            // Show success message and hide form
+            document.getElementById('subscribe-form').style.display = 'none';
+            document.getElementById('success-message').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
