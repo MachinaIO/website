@@ -30,14 +30,14 @@
 
         .header {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
             align-items: center;
             margin-bottom: 50px;
         }
 
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
+        .logo img {
+            max-width: 100px;
+            height: auto;
         }
 
         .nav a {
@@ -74,6 +74,9 @@
 <body>
     <div class="container">
         <div class="header">
+            <div class="logo">
+                <img src="logo.png" alt="Machina iO Logo">
+            </div>
             <div class="nav">
                 <a href="index.html">home</a>
                 <a href="about.html">about</a>
