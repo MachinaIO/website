@@ -6,6 +6,24 @@
     <title>Machina iO - Blog Post</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
+    
+    <!-- MathJax for LaTeX support -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Configure MathJax -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
 </head>
 <body>
     <div class="container">
@@ -26,9 +44,14 @@
             <div class="content">
                 <p>Your article content goes here. Replace this with the actual text for your blog post.</p>
                 <p>Add additional paragraphs, images, lists, or other HTML elements as required by your content.</p>
+                
+                <h3>LaTeX Example</h3>
+                <p>Here's an example of inline LaTeX: $E = mc^2$ and another one: $\alpha + \beta = \gamma$.</p>
+                
+                <p>And here's a display equation:</p>
+                $$\int_{a}^{b} f(x) \, dx = F(b) - F(a)$$
             </div>
         </div>
     </div>
 </body>
 </html>
-
