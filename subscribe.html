@@ -34,20 +34,40 @@
             </div>
         </div>
     </div>
-
     <script>
-        document.getElementById('subscribe-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            
-            // In a real implementation, you would send the email to your server here
-            // For now, we'll just show a success message
-            const email = document.getElementById('email').value;
-            console.log('Email submitted:', email);
-            
-            // Show success message and hide form
-            document.getElementById('subscribe-form').style.display = 'none';
-            document.getElementById('success-message').style.display = 'block';
-        });
-    </script>
-</body>
+        const ZAPIER_HOOK = 'https://hooks.zapier.com/hooks/catch/22684483/2pt9snk/';
+      
+        document
+          .getElementById('subscribe-form')
+          .addEventListener('submit', async function(e) {
+            e.preventDefault();
+      
+            const email = e.target.email.value.trim().toLowerCase();
+            if (!email) return alert('Please enter a valid email.');
+      
+            // build a urlencoded body
+            const formBody = new URLSearchParams({ email });
+      
+            try {
+              const resp = await fetch(ZAPIER_HOOK, {
+                method: 'POST',
+                body: formBody       
+              });
+      
+              console.log('Status:', resp.status, resp.statusText);
+              const text = await resp.text();
+              console.log('Response body:', text);
+      
+              if (!resp.ok) throw new Error(`Zapier error: ${resp.status}`);
+      
+              e.target.style.display = 'none';
+              document.getElementById('success-message').style.display = 'block';
+      
+            } catch (err) {
+              console.error(err);
+              alert('Oops—something went wrong. Please try again later.');
+            }
+          });
+      </script>
+      </body>
 </html>
