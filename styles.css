@@ -269,3 +269,25 @@ img {
     display: block;
     /* prevents stray descender gaps in some layouts */
 }
+
+/* Centered figures */
+.figure-center {
+    text-align: center;
+    /* centers both image and caption */
+    margin: 2rem 0;
+    /* breathing room above & below */
+}
+
+.figure-center img {
+    display: inline-block;
+    /* keeps the SVG’s natural size */
+    max-width: 100%;
+    /* responsive down-scaling */
+    height: auto;
+}
+
+.figure-center figcaption {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    /* slightly smaller than body text */
+}

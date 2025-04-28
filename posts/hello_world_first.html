@@ -278,13 +278,20 @@
                     matrices included in the obfuscated circuit, the largest ones—the preimage matrices—grow in size
                     roughly with the bit-length of $q$ or with its square. Consequently, their bit-length increases at
                     least quadratically in depth, causing the overall execution time to rise faster than linearly.</p>
-                <p><img alt="Chart from Google Docs" src="../static/figure1.svg" />
-                    <strong>Figure 1. Execution time at each multiplicative depth.</strong>
-                </p>
-                <p><img alt="Chart from Google Docs (1)" src="../static/figure2.svg" />
-                    <strong>Figure 2. Peak memory usage and obfuscated circuit size at each multiplicative
-                        depth.</strong>
-                </p>
+                <figure class="figure-center">
+                    <img src="../static/figure1.svg" alt="Execution-time chart, multiplicative-depth sweep">
+                    <figcaption>
+                        <strong>Figure&nbsp;1.</strong> Execution time at each multiplicative depth.
+                    </figcaption>
+                </figure>
+
+                <figure class="figure-center">
+                    <img src="../static/figure2.svg" alt="Peak-memory and size chart, multiplicative-depth sweep">
+                    <figcaption>
+                        <strong>Figure&nbsp;2.</strong> Peak memory usage and obfuscated circuit size at each
+                        multiplicative depth.
+                    </figcaption>
+                </figure>
                 <h3>Benchmark 2: input size (fixed circuit complexity)</h3>
                 <p>In the second benchmark, we kept the complexity of the public circuit identical to that of the depth
                     0 in Benchmark 1 and varied the number of input size as shown in Table 3.</p>
@@ -342,13 +349,16 @@
                     increases not only the size of each matrix but also the number of preimage matrices linearly. These
                     theoretical considerations therefore explain why execution time and data size grow with input size
                     at a rate surpassing their growth measured in Benchmark 1.</p>
-                <p><img alt="Chart from Google Docs (2)" src="../static/figure3.svg" />
-                    <strong>Figure 3. Execution time at each input size.</strong>
-                </p>
-                <p><img alt="Chart from Google Docs (3)" src="../static/figure4.svg" />
-                    <strong>Figure 4. Peak memory usage and obfuscated circuit size at each input size.</strong>
-                </p>
+                <figure class="figure-center">
+                    <img src="../static/figure3.svg" alt="Execution-time chart, input-size sweep">
+                    <figcaption><strong>Figure&nbsp;3.</strong> Execution time at each input size.</figcaption>
+                </figure>
 
+                <figure class="figure-center">
+                    <img src="../static/figure4.svg" alt="Peak-memory and size chart, input-size sweep">
+                    <figcaption><strong>Figure&nbsp;4.</strong> Peak memory usage and obfuscated circuit size at each
+                        input size.</figcaption>
+                </figure>
                 <h3>Discussion: Toward Practical Feasibility</h3>
                 <p>These benchmark results demonstrate that the obfuscation time, the evaluation time, and the
                     obfuscated circuit size scale are nonlinear with both the multiplicative depth and the input size of
