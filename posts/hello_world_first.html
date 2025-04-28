@@ -343,6 +343,65 @@
                         </tbody>
                     </table>
                 </div>
+                <p>These experiments were conducted in the below environment:
+                <ul>
+                    <li>
+                        <strong>Machine:</strong>
+                        AWS <code>i4i.16xlarge</code> instance (64&nbsp;vCPUs, 512&nbsp;GB&nbsp;RAM)
+                    </li>
+                    <li>
+                        <strong>Commit to the benchmarked code:</strong>
+                        <a href="https://github.com/MachinaIO/diamond-io/tree/a2fe732684530604b22051ebcee5b4aadba8d06b">
+                            a2fe732
+                        </a>
+                    </li>
+                </ul>
+                <p>Unlike the implementation used in Benchmark 1, the Benchmark 2 implementation loads from disk only
+                    the parts of the
+                    obfuscated circuit needed at each evaluation step, preventing out-of-memory crashes even with large
+                    input sizes.</p>
+                <p><strong>Results of Benchmark 2.</strong> Table 4 summarizes the results of the execution time, peak
+                    memory usage, and
+                    the obfuscated circuit size for each input size. The third column includes the time to load the
+                    obfuscated circuit
+                    from disk into RAM during evaluation.</p>
+                <p><strong>Table 4. Results of Benchmark 2 at each input size.</strong></p>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Input&nbsp;Size&nbsp;(bits)</th>
+                                <th>Obfuscation&nbsp;Time&nbsp;(min)</th>
+                                <th>Evaluation&nbsp;Time&nbsp;(min)</th>
+                                <th>Peak&nbsp;Memory&nbsp;Usage&nbsp;(GB)</th>
+                                <th>Obfuscated&nbsp;Program&nbsp;Size&nbsp;(GB)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>12.55</td>
+                                <td>2.925</td>
+                                <td>20.80</td>
+                                <td>6.303</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>52.01</td>
+                                <td>11.54</td>
+                                <td>62.97</td>
+                                <td>20.76</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>372.8</td>
+                                <td>85.19</td>
+                                <td>270.5</td>
+                                <td>88.05</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 <p>Figures 3 and 4 show that every metric in Benchmark 2 increases with input size more rapidly than the
                     results observed in Benchmark 1. Theoretical analysis indicates that—just as with multiplicative
                     depth—the bit-length of the modulus $q$ also grows in proportion to the input size. However, this
