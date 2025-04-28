@@ -36,9 +36,11 @@ body {
     0% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(0.95) rotate(2deg);
     }
+
     100% {
         transform: scale(1) rotate(0deg);
     }
@@ -181,4 +183,89 @@ body {
     margin-top: 30px;
     padding: 15px;
     border: 1px solid #000;
+}
+
+/* ---------------------------------
+   Table styling (readable / aligned)
+   --------------------------------- */
+table {
+    width: 100%;
+    /* fill the container */
+    border-collapse: collapse;
+    margin: 1rem 0;
+    /* breathing room above & below */
+    font-size: 0.95rem;
+    /* a tad smaller than body text */
+}
+
+thead th {
+    text-align: left;
+    padding: 8px 6px;
+    border-bottom: 2px solid #000;
+    font-weight: bold;
+}
+
+tbody td {
+    padding: 6px 6px;
+    border-bottom: 1px dotted #000;
+    /* match your article list look */
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+    /* clean edge on the last row */
+}
+
+tbody tr:hover td {
+    border-bottom: 1px solid #000;
+    /* solid underline on hover */
+    background-color: #fafafa;
+    /* subtle row highlight */
+}
+
+@media (max-width: 600px) {
+
+    /* stack long cells on narrow screens */
+    thead th,
+    tbody td {
+        white-space: nowrap;
+    }
+
+    tbody td:nth-child(3) {
+        white-space: normal;
+        /* let the long gate list wrap */
+    }
+}
+
+
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table {
+    min-width: 760px;
+    /* pick any fixed width you like */
+    width: 760px;
+    /* keeps columns stable */
+}
+
+
+thead th:not(:last-child),
+tbody td:not(:last-child) {
+    border-right: 1px solid #dcdcdc;
+}
+
+thead th:first-child,
+tbody td:first-child {
+    border-left: 1px solid #dcdcdc;
+}
+
+img {
+    max-width: 100%;
+    /* never overflow its parent */
+    height: auto;
+    /* preserve aspect ratio */
+    display: block;
+    /* prevents stray descender gaps in some layouts */
 }

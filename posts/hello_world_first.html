@@ -42,7 +42,7 @@
         </div>
 
         <div class="post">
-            <div class="post-title">Hello, World: the first signs of practical iO</div>
+            <div class="post-title">HELLO, WORLD: THE FIRST SIGNS OF PRACTICAL IO</div>
             <div class="post-date">2025-04-28</div>
             <div class="content">
                 <p>by <a href="https://x.com/SoraSue77">Sora Suegami</a>, <a href="https://x.com/backaes">Enrico
@@ -82,6 +82,364 @@
                         href="https://link.springer.com/chapter/10.1007/978-3-319-15618-7_12">one of the most recent
                         studies on the iO implementation</a> reports a simulation result that obfuscating a 2-bit
                     multiplication circuit requires around 10^27 years and 20 Zetta bytes of memory.</p>
+                <h2>Diamond iO: an implementable iO construction</h2>
+                <p>Diamond iO overcame this obstacle by presenting a new lattice-based iO construction that is simple
+                    enough to be implemented. A common bottleneck in previous iO schemes is the reliance on costly (and
+                    recursive) operations from functional encryption (FE). This is solved in Diamond iO by instead
+                    relying on <strong>simple matrix operations</strong>.</p>
+                <p>We <a href="https://github.com/MachinaIO/diamond-io">implemented</a> the construction defined in <a
+                        href="https://eprint.iacr.org/2025/236.pdf#page=17.34">Section 4 of our paper</a>. The
+                    implementation includes the following minor differences from the theoretical construction:
+                <ul>
+                    <li> <strong>RLWE and LWE</strong>. The paper describes the scheme in its learning with error (LWE)
+                        setting. In the implementation, we work in the ring LWE (RLWE) setting. More practically, finite
+                        field elements are replaced by polynomial rings, allowing us to pack more bits of information in
+                        each matrix into polynomials and compute multiplication efficiently with number theoretic
+                        transform.</li>
+                    <li><strong>Pseudorandom function (PRF) scheme.</strong> While the theoretical construction
+                        homomorphically evaluates PRF using FHE, the implementation evaluates it without FHE by reusing
+                        the
+                        secret key depending on the evaluator's input bits as the PRF key. A detailed explanation will
+                        be
+                        provided in the upcoming updated version of our paper.</li>
+                    <li><strong>Circuit model.</strong> The theoretical construction obfuscates an entire circuit. In
+                        the
+                        implemented version, the obfuscator sets a private key $k$ and a circuit $C$ to obtain an
+                        obfuscated
+                        program that only hides $k$ while $C$ remains public. The evaluator can then non-interactively
+                        execute the obfuscated program over their input $x$ to obtain $C(k, x)$ and nothing else. This
+                        is in
+                        line with practical <a href="https://phantom.zone/posts/program-obfuscation">use cases</a> in
+                        which
+                        we need to hide some signing or decryption key, while the functionality must be transparent.
+                    </li>
+                    <li><strong>FHE scheme.</strong> While the theoretical construction employs <a
+                            href="https://eprint.iacr.org/2013/340.pdf">GSW FHE</a>, the implementation adopts a simpler
+                        encryption method based on ring-LWE (RLWE) described in <a
+                            href="https://www.iacr.org/archive/eurocrypt2010/66320288/66320288.pdf">[LPR10]</a>. This
+                        scheme
+                        only supports linear homomorphic operations over ciphertexts encrypting binary vectors. On the
+                        other
+                        hand, when compared to GSW, it requires fewer bits to represent a ciphertext.</li>
+                    <li><strong>Lack of pseudorandom oracle.</strong> <a href="https://eprint.iacr.org/2022/1204.pdf">A
+                            pseudorandom oracle</a>, which could be implemented by a hash function in practice, is
+                        necessary
+                        for security proofs to ensure that iO can support not only pseudorandom functionalities but also
+                        general ones as shown in Subsection 5.4 of <a
+                            href="https://eprint.iacr.org/2024/1742.pdf">[BDJ+24]</a>. However, this has not yet been
+                        implemented in the current implementation as the required hash functions are still too complex.
+                        </p>
+                    </li>
+                </ul>
+                <h2>Beyond theory: benchmark results</h2>
+                <p>In our benchmarking scenario, the obfuscator sets a <a
+                        href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/dio/src/circuit.rs">public
+                        circuit</a> $C$ with variable arithmetic depth (addition and multiplication layers) and variable
+                    input size. As part of the obfuscation algorithm, the obfuscator samples a binary vector hardcoded
+                    key $k$ and embeds it inside the obfuscated circuit. The obfuscated circuit is then published such
+                    that any evaluator can run it over their dynamically chosen input $x$ to obtain $C(k, x)$ without
+                    any interaction with the obfuscator and without learning $k$ (beyond what could be inferred from
+                    $C(k, x)$). </p>
+                <p>We confirmed the correctness of the implementation by setting the public circuit as the identity
+                    function and verifying that the output of the evaluation matches the hardcoded key sampled by the
+                    obfuscator.</p>
+                <p>One important point to highlight about performance is that obfuscation is a one-time operation (per
+                    application). Since we can assume that the obfuscator has access to powerful hardware, the primary
+                    focus for optimization should be evaluation, which is a recurring and more performance-critical
+                    process.</p>
+                <h3>Benchmark settings</h3>
+                <p>We benchmarked the implementation using the <a
+                        href="https://github.com/MachinaIO/diamond-io/tree/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/dio">dio</a>
+                    CLI binary compiled without any feature flags, in the above scenario. For each experiment setting,
+                    we measured the execution time, memory consumption, and the size of the obfuscated circuit three
+                    times and adopted their averages, respectively. The number of addition and multiplication layers
+                    (depths) in the public circuit used for the benchmarks was adjusted according to the experiment
+                    settings.</p>
+                <p>We selected optimum parameters which, according to the <a
+                        href="https://github.com/malb/lattice-estimator">lattice-estimator</a>, should offer at least
+                    80-bit security against the best-known attacks. This process is automated by <a
+                        href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/simulator/main.py">our
+                        simulator script</a>. </p>
+                <h3>Benchmark 1: circuit complexity (fixed input size)</h3>
+                <p>In the first benchmark, we fixed the number of input size to one bit and scaled the circuit
+                    complexity by varying the
+                    depth of multiplication in the public circuit as shown in Table 1. Here, we ignore one
+                    multiplication depth for an
+                    inner product during FHE decryption because this is a common operation, independent of the public
+                    circuit
+                    definition. </p>
+                <p><strong>Table 1. Experimental settings for Benchmark 1.</strong>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Multiplicative depth</th>
+                                <th>Parameters</th>
+                                <th>Final Circuit Gates<br>(Input / Const / Add / Sub / Mul)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>0</td>
+                                <td>
+                                    <a
+                                        href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/e2e/dio-config.33.toml">
+                                        ID&nbsp;33
+                                    </a>
+                                </td>
+                                <td>46 / 108 / 36 / 0 / 180</td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td>
+                                    <a
+                                        href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/e2e/dio-config.34.toml">
+                                        ID&nbsp;34
+                                    </a>
+                                </td>
+                                <td>58 / 144 / 68 / 4 / 260</td>
+                            </tr>
+                            <tr>
+                                <td>10</td>
+                                <td>
+                                    <a
+                                        href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/e2e/dio-config.35.toml">
+                                        ID&nbsp;35
+                                    </a>
+                                </td>
+                                <td>76 / 198 / 106 / 4 / 370</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                </p>
+                <p>These experiments were conducted in the below environment:
+                <ul>
+                    <li><strong>Machine:</strong> AWS <code>i4i.8xlarge</code> instance (32&nbsp;vCPUs,
+                        256&nbsp;GB&nbsp;RAM)</li>
+                    <li><strong>Commit to the benchmarked code:</strong>
+                        <a href="https://github.com/MachinaIO/diamond-io/tree/f3b2fdc121b22de69e9a801f1eee41620c565627">
+                            f3b2fdc
+                        </a>
+                    </li>
+                </ul>
+                <p><strong>Results of Benchmark 1.</strong> Table 2 summarizes the results of the execution time, peak
+                    memory usage, and the obfuscated circuit size for each multiplicative depth. The second, third, and
+                    fourth columns report, respectively, the time required to obfuscate the circuit and write it to
+                    disk, the time to load the obfuscated circuit from disk into RAM, and the time to evaluate it. </p>
+                <p><strong>Table 2. Results of Benchmark 1 at each multiplicative depth.</strong></p>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Multiplicative depth</th>
+                                <th>Obfuscation&nbsp;Time&nbsp;(min)</th>
+                                <th>Loading&nbsp;Time&nbsp;(min)</th>
+                                <th>Evaluation&nbsp;Time&nbsp;(min)</th>
+                                <th>Peak&nbsp;Memory&nbsp;Usage&nbsp;(GB)</th>
+                                <th>Obfuscated&nbsp;Circuit&nbsp;Size&nbsp;(GB)</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td>0</td>
+                                <td>15.80</td>
+                                <td>4.575</td>
+                                <td>2.542</td>
+                                <td>34.30</td>
+                                <td>6.303</td>
+                            </tr>
+                            <tr>
+                                <td>5</td>
+                                <td>39.85</td>
+                                <td>12.84</td>
+                                <td>7.789</td>
+                                <td>80.38</td>
+                                <td>10.79</td>
+                            </tr>
+                            <tr>
+                                <td>10</td>
+                                <td>129.3</td>
+                                <td>42.16</td>
+                                <td>29.94</td>
+                                <td>225.1</td>
+                                <td>19.77</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Figure 1 demonstrates that the execution time of each operation increases with depth faster than
+                    linearly. The peak memory usage and the obfuscated circuit size shown in Figure 2 follow the same
+                    trend.</p>
+                <p>This trend can be theoretically explained as follows. During evaluation, the upper bound of
+                    accumulated error grows exponentially with the circuit depth. To keep correctness, the modulus $q$
+                    must therefore be chosen with a bit-length that scales proportionally to the depth. Among the
+                    matrices included in the obfuscated circuit, the largest ones—the preimage matrices—grow in size
+                    roughly with the bit-length of $q$ or with its square. Consequently, their bit-length increases at
+                    least quadratically in depth, causing the overall execution time to rise faster than linearly.</p>
+                <p><img alt="Chart from Google Docs" src="../static/figure1.svg" />
+                    <strong>Figure 1. Execution time at each multiplicative depth.</strong>
+                </p>
+                <p><img alt="Chart from Google Docs (1)" src="../static/figure2.svg" />
+                    <strong>Figure 2. Peak memory usage and obfuscated circuit size at each multiplicative
+                        depth.</strong>
+                </p>
+                <h3>Benchmark 2: input size (fixed circuit complexity)</h3>
+                <p>In the second benchmark, we kept the complexity of the public circuit identical to that of the depth
+                    0 in Benchmark 1 and varied the number of input size as shown in Table 3.</p>
+                <p><strong>Table 3. Experimental settings for Benchmark 2.</strong></p>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Input&nbsp;Size&nbsp;(bits)</th>
+                                <th>Parameters</th>
+                                <th>Final&nbsp;Circuit&nbsp;Gates<br>(Input&nbsp;/&nbsp;Const&nbsp;/&nbsp;Add&nbsp;/&nbsp;Sub&nbsp;/&nbsp;Mul)
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>
+                                    <a
+                                        href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/e2e/dio-config.33.toml">
+                                        ID&nbsp;33
+                                    </a>
+                                </td>
+                                <td>46&nbsp;/&nbsp;108&nbsp;/&nbsp;36&nbsp;/&nbsp;0&nbsp;/&nbsp;180</td>
+                            </tr>
+
+                            <tr>
+                                <td>2</td>
+                                <td>
+                                    <a
+                                        href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/e2e/dio-config.36.toml">
+                                        ID&nbsp;36
+                                    </a>
+                                </td>
+                                <td>58&nbsp;/&nbsp;144&nbsp;/&nbsp;48&nbsp;/&nbsp;0&nbsp;/&nbsp;240</td>
+                            </tr>
+
+                            <tr>
+                                <td>4</td>
+                                <td>
+                                    <a
+                                        href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/e2e/dio-config.39.toml">
+                                        ID&nbsp;39
+                                    </a>
+                                </td>
+                                <td>82&nbsp;/&nbsp;216&nbsp;/&nbsp;72&nbsp;/&nbsp;0&nbsp;/&nbsp;360</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Figures 3 and 4 show that every metric in Benchmark 2 increases with input size more rapidly than the
+                    results observed in Benchmark 1. Theoretical analysis indicates that—just as with multiplicative
+                    depth—the bit-length of the modulus $q$ also grows in proportion to the input size. However, this
+                    increases not only the size of each matrix but also the number of preimage matrices linearly. These
+                    theoretical considerations therefore explain why execution time and data size grow with input size
+                    at a rate surpassing their growth measured in Benchmark 1.</p>
+                <p><img alt="Chart from Google Docs (2)" src="../static/figure3.svg" />
+                    <strong>Figure 3. Execution time at each input size.</strong>
+                </p>
+                <p><img alt="Chart from Google Docs (3)" src="../static/figure4.svg" />
+                    <strong>Figure 4. Peak memory usage and obfuscated circuit size at each input size.</strong>
+                </p>
+
+                <h3>Discussion: Toward Practical Feasibility</h3>
+                <p>These benchmark results demonstrate that the obfuscation time, the evaluation time, and the
+                    obfuscated circuit size scale are nonlinear with both the multiplicative depth and the input size of
+                    the circuit. However, the growth of the evaluation time is slower than those of the others, which is
+                    an encouraging result as the evaluation is the most recurring process.</p>
+                <p>Although the implementation seems to be still far from practical circuit sizes, according to [<a
+                        href="https://eprint.iacr.org/2013/451.pdf">GGH+13</a>] and <a
+                        href="https://eprint.iacr.org/2017/240.pdf">[BIS+17]</a>, we don't need to support obfuscation
+                    for any complex circuits. Instead, the supported circuit <em>only</em> needs to contain the logic to
+                    verify the correct execution of FHE evaluation, via ZKP, and conditionally decrypt the given
+                    ciphertext with the embedded secret key. This would allow us to outsource the application logic to
+                    an FHE program and focus on efficiently obfuscating a circuit with constant multiplicative depth and
+                    input size.</p>
+
+                <h2>Future research</h2>
+                <p>Our next step is to tackle the following security and efficiency challenges.</p>
+                <p><strong>Recent attacks on the evasive LWE assumption.</strong> The four papers listed below—all
+                    published after the
+                    Diamond iO paper—introduce new attacks on the evasive LWE assumption. Although the security proof of
+                    Diamond iO
+                    relies heavily on this assumption, these attacks, as far as we know, succeed only for certain
+                    parameters and sampler
+                    sets that are not necessarily used in actual cryptographic schemes relying on the same assumption.
+                    We are now
+                    investigating whether any of them can be adapted to the concrete parameters and sampler employed in
+                    our
+                    construction.
+                <ul>
+                    <li>
+                        <a href="https://eprint.iacr.org/2025/374.pdf">
+                            Simple and General Counterexamples for Private-Coin Evasive&nbsp;LWE
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://eprint.iacr.org/2025/375.pdf">
+                            Evasive&nbsp;LWE: Attacks, Variants&nbsp;&amp; Obfustopia
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://eprint.iacr.org/2025/390.pdf">
+                            Lattice-Based Post-Quantum&nbsp;iO from Circular Security with Random
+                            Opening&nbsp;Assumption
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://eprint.iacr.org/2025/421.pdf">
+                            A Note on Obfuscation-based Attacks on Private-Coin Evasive&nbsp;LWE
+                        </a>
+                    </li>
+                </ul>
+
+                <p><strong>Noise refreshing during evaluation.</strong> As described above, we only need to support the
+                    obfuscation of a
+                    circuit that verifies a ZK proof and then decrypts the given FHE ciphertext. Nonetheless, the
+                    current implementation
+                    cannot support the obfuscation of such a circuit due to its limited input size. Specifically, since
+                    the modulus bits
+                    scale linearly due to the exponential growth of the accumulated error with respect to the input
+                    size, we are
+                    researching techniques to reduce the error during evaluation, such as one for BGG+ encodings
+                    introduced in <a href="https://eprint.iacr.org/2023/1716.pdf">[HLL23]</a>.</p>
+                <p><strong>Distributed obfuscation.</strong> Careful reader might notice that iO is virtually worthless
+                    if the
+                    obfuscator still knows the secret inside the obfuscated program. A naive way to solve this issue is
+                    to perform the
+                    obfuscation process within an MPC but this is extremely impractical. We are excited to research more
+                    practical ways
+                    to run distributed trusted setups for obfuscation as this topic has been largely overlooked in
+                    existing literature.
+                </p>
+                <h2>What's next?</h2>
+                <p>Machina ("mah-kin-ah") iO, a project within <a href="https://pse.dev">Privacy and Scaling
+                        Explorations (PSE)</a>,
+                    aims to move iO from theory to practice. Alongside our research and engineering efforts, we’ll be
+                    publishing a
+                    series of posts explaining the core ideas, the vision behind the technology, and the lessons we’ve
+                    learned through
+                    implementation. If you’re interested in following our journey, we invite you to <a
+                        href="https://machina-io.com/subscribe.html">subscribe</a>.</p>
+                <h2>Acknowledgments</h2>
+                <p><em>We would like to sincerely thank the developers of <a
+                            href="https://github.com/openfheorg/openfhe-development">OpenFHE</a> and <a
+                            href="https://github.com/fairmath/openfhe-rs">openfhe-rs</a>, open-source lattice and FHE
+                        libraries, whose
+                        optimized implementations of trapdoor sampling, RLWE primitives, and Rust bindings played a
+                        crucial role in
+                        helping us implement Diamond iO. We are also grateful to Prof. Yuriy Polyakov for his valuable
+                        advice on
+                        preimage sampling and his insightful feedback on optimizing our implementation. Any remaining
+                        errors are
+                        entirely our own responsibility.</em></p>
             </div>
         </div>
     </div>
