@@ -313,7 +313,7 @@ img {
 
 .code-container pre {
     margin: 0;
-    font-family: 'Fira Code', Consolas, Menlo, monospace;
+    font-family: 'BerkeleyMono', monospace;
     font-size: 0.95rem;
     line-height: 1.4;
     color: #eceff4;
