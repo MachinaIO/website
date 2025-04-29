@@ -131,6 +131,13 @@
                         </p>
                     </li>
                 </ul>
+                <p>While all of these differences (except for the first one) are introduced to reduce the complexity of
+                    the functional encryption (FE) scheme of <a
+                        href="https://eprint.iacr.org/archive/2024/1719/1729569779.pdf">[AKY24]</a>, the key novelty of
+                    Diamond iO—namely the matrix-based process to insert the evaluator’s input bits into the FE
+                    ciphertext provided by the obfuscator—is implemented as defined in the theoretical construction
+                    (except for some trivial optimizations). Therefore, despite these disparities, the implementation
+                    still demonstrates the concrete efficiency of the novel techniques we proposed.</p>
                 <h2>Beyond theory: benchmark results</h2>
                 <p>In our benchmarking scenario, the obfuscator sets a <a
                         href="https://github.com/MachinaIO/diamond-io/blob/e7e87dd8422db0f8ccf634fdb3c658c2c1eef82e/dio/src/circuit.rs">public
