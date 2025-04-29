@@ -147,6 +147,44 @@
                     that any evaluator can run it over their dynamically chosen input $x$ to obtain $C(k, x)$ without
                     any interaction with the obfuscator and without learning $k$ (beyond what could be inferred from
                     $C(k, x)$). </p>
+                <div class="code-container">
+                    <pre><code>
+    // public circuit C
+    let mut public_circuit = PolyCircuit::new();
+
+    // inputs: BaseDecompose(ct), Evaluator's input
+    // outputs: BaseDecompose(ct) * acc
+    {
+        let inputs = public_circuit.input((2 * log_base_q) + 1);
+        let mut outputs = vec![];
+        let eval_input = inputs[2 * log_base_q];
+
+        // compute acc according to provided add_n and mul_n values
+        let mut acc = if add_n == 0 {
+            public_circuit.const_one_gate()
+        } else {
+            public_circuit.const_zero_gate()
+        };
+        for _ in 0..add_n {
+            acc = public_circuit.add_gate(acc, eval_input);
+        }
+        for _ in 0..mul_n {
+            acc = public_circuit.mul_gate(acc, eval_input);
+        }
+
+        // compute the output
+        for ct_input in &inputs[0..2 * log_base_q] {
+            let muled = public_circuit.mul_gate(*ct_input, acc);
+            outputs.push(muled);
+        }
+        public_circuit.output(outputs);
+    }
+                      </code></pre>
+                </div>
+                <p>In the following description, multiplicative depth represents the depth of multiplication gates in
+                    the public circuit, rather than one in the entire circuit.
+                    Even when this depth is 0, the entire circuit being obfuscated and evaluated has at least one depth
+                    because the final FHE decryption step includes one inner product.</p>
                 <p>We confirmed the correctness of the implementation by setting the public circuit as the identity
                     function and verifying that the output of the evaluation matches the hardcoded key sampled by the
                     obfuscator.</p>
@@ -175,12 +213,13 @@
                     inner product during FHE decryption because this is a common operation, independent of the public
                     circuit
                     definition. </p>
-                <p><strong>Table 1.</strong> Experimental settings for Benchmark 1.
                 <div class="table-scroll">
                     <table>
+                        <caption><strong>Table 1.</strong> Experimental settings for Benchmark 1.
+                        </caption>
                         <thead>
                             <tr>
-                                <th>Multiplicative depth</th>
+                                <th>Multiplicative <br>depth</th>
                                 <th>Parameters</th>
                                 <th>Final Circuit Gates<br>(Input / Const / Add / Sub / Mul)</th>
                             </tr>
@@ -234,17 +273,18 @@
                     memory usage, and the obfuscated circuit size for each multiplicative depth. The second, third, and
                     fourth columns report, respectively, the time required to obfuscate the circuit and write it to
                     disk, the time to load the obfuscated circuit from disk into RAM, and the time to evaluate it. </p>
-                <p><strong>Table 2.</strong> Results of Benchmark 1 at each multiplicative depth.</p>
                 <div class="table-scroll">
                     <table>
+                        <caption><strong>Table 2.</strong> Results of Benchmark 1 at each multiplicative depth.
+                        </caption>
                         <thead>
                             <tr>
-                                <th>Multiplicative depth</th>
-                                <th>Obfuscation&nbsp;Time&nbsp;(min)</th>
-                                <th>Loading&nbsp;Time&nbsp;(min)</th>
-                                <th>Evaluation&nbsp;Time&nbsp;(min)</th>
-                                <th>Peak&nbsp;Memory&nbsp;Usage&nbsp;(GB)</th>
-                                <th>Obfuscated&nbsp;Circuit&nbsp;Size&nbsp;(GB)</th>
+                                <th>Multiplicative <br>depth</th>
+                                <th>Obfuscation<br>&nbsp;Time&nbsp;(min)</th>
+                                <th>Loading<br>&nbsp;Time&nbsp;(min)</th>
+                                <th>Evaluation<br>&nbsp;Time&nbsp;(min)</th>
+                                <th>Peak&nbsp;Memory<br>&nbsp;Usage&nbsp;(GB)</th>
+                                <th>Obfuscated<br>&nbsp;Circuit&nbsp;Size&nbsp;(GB)</th>
                             </tr>
                         </thead>
 
@@ -302,12 +342,13 @@
                 <h3>Benchmark 2: input size (fixed circuit complexity)</h3>
                 <p>In the second benchmark, we kept the complexity of the public circuit identical to that of the depth
                     0 in Benchmark 1 and varied the number of input size as shown in Table 3.</p>
-                <p><strong>Table 3.</strong> Experimental settings for Benchmark 2.</p>
                 <div class="table-scroll">
                     <table>
+                        <caption><strong>Table 3.</strong> Experimental settings for Benchmark 2.
+                        </caption>
                         <thead>
                             <tr>
-                                <th>Input&nbsp;Size&nbsp;(bits)</th>
+                                <th>Input<br>&nbsp;Size&nbsp;(bits)</th>
                                 <th>Parameters</th>
                                 <th>Final&nbsp;Circuit&nbsp;Gates<br>(Input&nbsp;/&nbsp;Const&nbsp;/&nbsp;Add&nbsp;/&nbsp;Sub&nbsp;/&nbsp;Mul)
                                 </th>
@@ -372,16 +413,17 @@
                     the obfuscated circuit size for each input size. The third column includes the time to load the
                     obfuscated circuit
                     from disk into RAM during evaluation.</p>
-                <p><strong>Table 4.</strong> Results of Benchmark 2 at each input size.</p>
                 <div class="table-scroll">
                     <table>
+                        <caption><strong>Table 4.</strong> Results of Benchmark 2 at each input size.
+                        </caption>
                         <thead>
                             <tr>
-                                <th>Input&nbsp;Size&nbsp;(bits)</th>
-                                <th>Obfuscation&nbsp;Time&nbsp;(min)</th>
-                                <th>Evaluation&nbsp;Time&nbsp;(min)</th>
-                                <th>Peak&nbsp;Memory&nbsp;Usage&nbsp;(GB)</th>
-                                <th>Obfuscated&nbsp;Program&nbsp;Size&nbsp;(GB)</th>
+                                <th>Input<br>&nbsp;Size&nbsp;(bits)</th>
+                                <th>Obfuscation<br>&nbsp;Time&nbsp;(min)</th>
+                                <th>Evaluation<br>&nbsp;Time&nbsp;(min)</th>
+                                <th>Peak&nbsp;Memory<br>&nbsp;Usage&nbsp;(GB)</th>
+                                <th>Obfuscated<br>&nbsp;Program&nbsp;Size&nbsp;(GB)</th>
                             </tr>
                         </thead>
                         <tbody>

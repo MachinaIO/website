@@ -186,66 +186,75 @@ body {
 }
 
 .table-scroll {
-    width: 100%;
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     margin: 1rem 0;
+    /* optionally: text-align: center;  if you have inline elements you need centered. */
 }
 
 .table-scroll table {
-    width: 100%;
-    /* allow it to shrink on small screens */
+    margin: 0 auto;
+    /* <-- this centers the table block */
     border-collapse: collapse;
-    table-layout: auto;
-    /* let columns size to their content */
+    table-layout: fixed;
+    /* or auto, whatever you prefer */
 }
+
 
 .table-scroll th,
 .table-scroll td {
-    padding: 0.75rem 1rem;
-    border: 1px solid #ccc;
-    /* outer grid lines */
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #999;
     vertical-align: middle;
-    text-align: left;
 }
 
-/* header row */
+
+/* stick the header, give it a thicker bottom rule */
 .table-scroll thead th {
-    background-color: #f5f5f5;
-    border-bottom: 2px solid #bbb;
-    font-weight: 600;
     position: sticky;
     top: 0;
-    /* keep header pinned on scroll */
-    z-index: 1;
+    background: #f0f0f0;
+    border-bottom: 2px solid #666;
+    font-weight: 600;
+    text-align: center;
+    z-index: 2;
 }
+
+.table-scroll th {
+    /* instead of white-space: normal; */
+    white-space: pre-line;
+    /* preserve newline characters as breaks */
+    word-wrap: break-word;
+    /* fallback for very long words */
+    overflow-wrap: break-word;
+    text-align: center;
+    padding: 0.5rem 0.75rem;
+}
+
 
 /* zebra striping */
 .table-scroll tbody tr:nth-child(even) {
-    background-color: #fafafa;
+    background: #fafafa;
 }
 
 /* hover highlight */
 .table-scroll tbody tr:hover {
-    background-color: #f1f1f1;
+    background: #f5f5f5;
 }
 
-/* small‐screen tweaks */
-@media (max-width: 600px) {
-    .table-scroll {
-        font-size: 0.875rem;
-    }
+/* make the first column narrow and centered */
+.table-scroll th:nth-child(1),
+.table-scroll td:nth-child(1) {
+    width: 6ch;
+    /* roughly 6 zeroes wide */
+    text-align: center;
+}
 
-    /* prevent accidental wrapping in narrow columns */
-    .table-scroll th,
-    .table-scroll td {
-        white-space: nowrap;
-    }
-
-    /* but allow the 3rd column to wrap if it’s long */
-    .table-scroll td:nth-child(3) {
-        white-space: normal;
-    }
+/* right-align all other (numeric) columns */
+.table-scroll th:nth-child(n+2),
+.table-scroll td:nth-child(n+2) {
+    text-align: right;
+    white-space: nowrap;
+    /* prevent numbers wrapping */
 }
 
 
@@ -278,4 +287,51 @@ img {
     margin-top: 0.5rem;
     font-size: 0.9rem;
     /* slightly smaller than body text */
+}
+
+/* In your CSS file (or inside a <style> block) */
+.code-container {
+    width: 100%;
+    background-color: #2e3440;
+    /* dark background */
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    /* enable horizontal scrolling */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    margin: 1em 0;
+}
+
+.code-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.code-container::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.code-container pre {
+    margin: 0;
+    font-family: 'Fira Code', Consolas, Menlo, monospace;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #eceff4;
+    /* light text */
+    white-space: pre;
+    /* preserve all spacing, no wrapping */
+}
+
+/* Optional: highlight comments and keywords */
+.code-container code {
+    display: block;
+}
+
+.code-container code span.comment {
+    color: #616e88;
+}
+
+.code-container code span.keyword {
+    color: #81a1c1;
+    font-weight: bold;
 }
