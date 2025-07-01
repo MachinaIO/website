@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machina iO - Blog Post</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    
+    <!-- MathJax for LaTeX support -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Configure MathJax -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <a href="../index.html">
+                    <img src="../logo.png" alt="Machina iO Logo">
+                </a>
+            </div>
+            <div class="nav">
+                <a href="../about.html">about</a>
+                <a href="../subscribe.html">subscribe</a>
+            </div>
+        </div>
+
+        <div class="post">
+            <div class="post-title">UNBOXING IO: BUILDING FROM FAMILIAR CRYPTO BLOCKS</div>
+            <div class="post-date">2025-07-01</div>
+            <div class="content">
+                <p>by <a href="https://x.com/backaes">Enrico
+                        Bottazzi</a>, with contributions and review from <a href="https://x.com/0xpiapark">Pia Park</a> and <a href="https://x.com/SoraSue77">Sora Suegami</a>
+                </p>
+
+<h2>Introduction</h2>
+<p>Over the past few months of researching and implementing indistinguishability obfuscation (iO), we’ve noticed a frustrating gap in the available resources. Most papers are highly technical and intimidating, while beginner friendly articles stay at a vague, feature level overview: they tell you what iO can enable but nothing about how to construct it.</p>
+<p>This article aims to bridge that gap. We’ll work through a concrete, end to end example, of a non-interactive conditional signature printer, building it in several attempts <strong>using familiar cryptographic primitives as building blocks</strong>. By the end, you should have a clear roadmap of the theoretical building blocks behind iO and a hands on understanding of its power.</p>
+
+<h2>Goal: non-interactive conditional signature printer</h2>
+<p>Our target program $f$ behaves as follows:</p>
+<p>$$
+
+f(k, x)=
+\begin{cases}
+\textsf{sign}(k, x) & \text{if } x \text{ is prime},\\
+\bot & \text{otherwise}.
+\end{cases}
+
+$$</p>
+<p>That is, given a message $x$, it outputs a valid signature under the secret key $k$ when $x$ is prime, and $\bot$ otherwise. </p>
+<p>The setting involves a <strong>key owner</strong>, who generates the program and holds the signing key $k$, and a collection of <strong>users</strong>, who supply numbers $x$ and hope to obtain signatures when the condition holds. Any viable construction must meet two requirements:</p>
+<ol>
+<li><strong>No interaction.</strong> Once the program is published, users must be able to run it and (conditionally) obtain signatures without ever contacting the key owner. Even if the key owner is off-grid on a desert island, the system must keep working.</li>
+<li><strong>Key privacy.</strong> Executing the program should reveal nothing about $k$ beyond what is already implicit in the output $f(k, x)$. Simply releasing the source code is therefore out of the question, because it would expose the key.</li>
+</ol>
+<p>In the sections that follow we’ll try to build this program with various attempts: first with a public-lookup, then with fully homomorphic encryption (FHE), next with functional encryption (FE), and finally with an augmented version of FE that we'll call indistinguishability obfuscation (iO). </p>
+
+<h3>Attempt #1 – public truth table</h3>
+<p>We start from something straightforward: let the key owner, holding the signing key $k$, publish a truth table that maps every possible input $x_i$ to the corresponding output $f(k,x_i)$. Concretely, the key owner fixes an input domain, say 64 bits, and precomputes $f(k,x_i)$ for each of the $2^{64}$ possible inputs. You can imagine the truth table as a huge dictionary keyed by every $x_i$, with each value equal to $f(k,x_i)$. Given Alice as user with input $x=7$, she could lookup the trust table corresponding to her key and obtain $f(k, 7)$.</p>
+<p>While this approach satisfies the two requirements laid out earlier, it scales exponentially with the input size, so it's impractical. We therefore add a third requirement: the work done by the evaluator should not grow exponentially with the bit length of the user’s input.</p>
+<h3>Attempt #2 - fully homomorphic encryption</h3>
+<p>As you might have heard in some conference, fully homomorphic encryption (FHE) is always mentioned with respect to "computation on encrypted data", so it sounds a potential solution to our problem.</p>
+<p>We first list the core APIs of FHE. In particular, we describe the secret key variant. I won't go too deep into this as, differently from iO, you can find plenty of <a href="https://fhe.org/resources/">great resources online</a>. </p>
+<p>$$
+\begin{aligned}
+\mathsf{FHE.Keygen}() &\rightarrow sk\\
+\mathsf{FHE.Enc}(k, sk) &\rightarrow ct_k\\
+\mathsf{FHE.Eval}(f, ct_k) &\rightarrow ct_{f(k)}\\
+\mathsf{FHE.Dec}(ct_{f(k)}, sk) &\rightarrow f(k)
+\end{aligned}
+$$</p>
+<p>Here's a sketch of a non-interactive conditional signature printer based on FHE. The key owner is also the holder of the FHE secret key $sk$. The role of the cloud is to store data produced by the key owner and make them accessible to everyone, including any other user such as Bob or Carl that might be unknown to the key owner.</p>
+<div style="display: flex; justify-content: center;">
+    <img alt="FHE" src="https://hackmd.io/_uploads/HyIN1bkVxg.png" />
+</div>
+<p>Although Alice can evaluate the function $f$ over the encrypted signing key $ct_k$ and her input $7$ to obtain an encrypted version of the output $ct_{f(k,7)}$, this still requires a further interaction with key owner to decrypt it. So this violates our no-interaction requirement. On the other hand, publishing the FHE secret key $sk$ would allow for non-interactive decryption but also violate the security requirement of our application, since now Alice can also decrypt $ct_k$. We need to think deeper...</p>
+
+<h3>Attempt #3 - functional encryption</h3>
+<p>The next technology that we are going to introduce is functional encryption (FE). This is a less "popular" cryptographic building block. This is not surprising since it took me many months to find a valid motivating application for it. We first analyse the core APIs of FE and describe such application. Only then we'll be equipped to apply FE to our problem.</p>
+<p>$$
+\begin{aligned}
+\mathsf{FE.Setup}() &\rightarrow mpk, msk\\
+\mathsf{FE.Keygen}(msk, f) &\rightarrow sk_f\\
+\mathsf{FE.Enc}(k, mpk) &\rightarrow ct_k\\
+\mathsf{FE.Dec}(ct_k, sk_f) &\rightarrow f(k)
+\end{aligned}
+$$</p>
+<p>The motivating example I chose to help you understand FE is email spam filtering: on one hand, Daisy doesn't want to rely on a cloud mail provider able to read all her emails. On the other hand, a secure (fully encrypted) cloud mail provider wouldn't be able to detect spam emails and require Daisy to download each email, including potentiall spam ones, consuming her precious bandwidth and device space. </p>
+<p>Instead, Daisy can run the setup to obtain a master public key $mpk$ and a master secret key $msk$. Use the latter to generate a functional secret key $sk_f$ tied to a function $f$ that detects if an email is spam (returns $1$) or not (returns $0$). Share the functional key with her secure email cloud provider. Every sender can encrypt an email $k$ directed to Daisy under her master public key $mpk$ and share the ciphertext $ct_k$ to the email provider. For each email received by Daisy, the provider can run the FE decryption and learn whether an email is spam or not and only serve the non-spam ones to Daisy. More importantly, the server doesn't learn any information about the content of an email beyond whether this is spam or not. We additionally note that the function $f$ is public to the receiver of $sk_f$. </p>
+<p>Having clarified the interface of FE, we can go back to our problem: building a non-interactive conditional signature printer. Here's a potential sketch.</p>
+<div style="display: flex; justify-content: center;">
+    <img alt="FE" src="https://hackmd.io/_uploads/Bk-ad-1Egg.png" />
+</div>
+<p>While we appreciate the non-interactive property of FE decryption we still have a major issue. FE decryption doesn't allow Alice to additionally inject their input $x=7$. How can the key owner allow for the inputs dynamically chosen by Alice (and, potentially, by many other unknown users)? A naive solution is for the key owner to generate a functional key for any possible input combination. Specifically, for each possible input $x_i$ the key owner defines a function $f_{[x_i]}(k)$ that, on input $k$ returns $f(k, x_i)$ where $x_i$ is hardcoded into the function definition. In that scenario, Alice could use the functional key for $f_{[7]}(k)$ and obtain the decrypted value $f(k, 7)$. But this means that the work of the key owner is exponential to the number of input bits. Are we back to square one? Rather than discouraging ourselves, we see the glass half full: we finally found a way to allow for non-interactive decryption binded to a specific function set by the key owner. We just need to add a little piece to it... </p>
+
+<h3>Attempt #4 augmented FE a.k.a. iO</h3>
+<p>We now imagine a wishful solution: what if the scheme supported an additional API (in blue) that allows Alice to extend the ciphertext provided by the key owner with her dinamically chosen input $x$.</p>
+<p>$$
+\begin{aligned}
+\mathsf{FE.Setup}() &\rightarrow mpk, msk\\
+\mathsf{FE.Keygen}(msk, f) &\rightarrow sk_f\\
+\mathsf{FE.Enc}(k, mpk) &\rightarrow ct_k\\
+\color{blue}{\mathsf{FE.ExtendCT}(ct_k, x)} &\color{blue}{\rightarrow ct_{k || x}}\\
+\mathsf{FE.Dec}(ct_{k || x}, sk_f) &\rightarrow f(k, x)
+\end{aligned}
+$$</p>
+<p>Here's the sketch of the application assuming this augemented FE construction</p>
+<div style="display: flex; justify-content: center;">
+    <img alt="A_FE" src="https://hackmd.io/_uploads/ryK9AbJVxx.png" />
+</div>
+
+
+<p>Success! This solution satisfies all the required properties:</p>
+<ul>
+<li>Alice, and potentially any other user, can obtain the result of $f(k, x)$ without any interaction with the key owner</li>
+<li>The construction is secure as the users nothing more than $f(k, x)$. The definition of $f$ is public but this is not an issue</li>
+<li>No exponential effort is required from the key owner </li>
+</ul>
+<p>Before moving forward, we do notice that our interface has become too cluttered and, while cleaning it up, we redefine it as iO!</p>
+<p>$$
+
+\begin{aligned}
+  % ---------- first group ----------
+  \left.
+    \begin{array}{l}
+      \mathsf{FE.Setup}() \rightarrow mpk, msk\\
+      \mathsf{FE.Keygen}(msk, f) \rightarrow sk_f\\
+      \mathsf{FE.Enc}(k, mpk) \rightarrow ct_k
+    \end{array}
+  \right\} &\;\mathsf{iO.Obf}(f(k,\cdot)) \rightarrow \tilde{C}
+  \\[8pt]
+  % ---------- second group ----------
+  \left.
+    \begin{array}{l}
+      \mathsf{FE.ExtendCT}(ct_k, x) \rightarrow ct_{k \,\|\, x}\\
+      \mathsf{FE.Dec}(ct_{k \,\|\, x}, sk_f) \rightarrow f(k, x)
+    \end{array}
+  \right\} &\;\mathsf{iO.Eval}(\tilde{C}, x) \leftarrow f(k, x)
+\end{aligned}
+
+$$</p>
+<p>Everything (hopefully) became much cleaner now. iO can be viewed as an extended version of FE that allows a user to inject their inputs bits into the ciphertext. The interface is set to allow an obfuscator (which, in our example, is the key owner) to set a public function $f$ that takes as inputs a secret $k$ and another yet unknown input of fixed size and obtain an obfuscated version $\tilde{C}$ of that program. The obfuscated program can be freely published to the public and any evaluator (such as Alice) with input $x$ can evaluate it to obtain $f(k, x)$.</p>
+
+<p>The final sketch for our non-interactive conditional signature printer build via iO looks as follows:</p>
+<div style="display: flex; justify-content: center;">
+    <img alt="IO" src="https://hackmd.io/_uploads/B1u0Gf1Elg.png" />
+</div>
+<p>This is exactly the process we followed to build <a href="https://eprint.iacr.org/2025/236">Diamond iO</a>. We started from an existing FE scheme, namely <a href="https://eprint.iacr.org/archive/2024/1719/20241022:040259">[AKY24a]</a> and figure out a way to allow an evaluator to extend the ciphertext by inserting their dynamically chosen input bits without requiring exponential effort.</p>
+<p>The following diagram illustrates the program that we have been manage to obfuscate. In particular, everything that is inside the dotted rectangle represents our obfuscated program $\tilde{C}$:
+- the function defintion $f$, made of the set of arithmetic gates to be performed by the program, is public
+- the signing key $k$ is private</p>
+<div style="display: flex; justify-content: center;">
+    <img alt="Screenshot 2025-06-21 at 10.45.44" src="https://hackmd.io/_uploads/SJlUSWg4Egg.png" />
+</div>
+
+<h3>Final building blocks</h3>
+<p>We saw the iO is required to build a non-interactive conditional signature printer and it can be viewed as an extended version of FE that supports ciphertext re-use. Now we can finally sketch out a map of the core primitives needed to reach iO, with pointers to the main academic references.</p>
+
+<div style="display: flex; justify-content: center;">
+    <img alt="Screenshot 2025-07-01 at 13.35.47" src="https://hackmd.io/_uploads/Syb38abreg.png" />
+</div>
+<p>To build functional encryption, we heavily rely on the construction introduced by <a href="https://eprint.iacr.org/archive/2024/1719/20241022:040259">[AKY24a]</a> which only uses matrix multiplication, <a href="https://www.youtube.com/watch?v=O0NoW4UOd9Y">BGG+ encoding</a> and <a href="https://eprint.iacr.org/2011/501">lattice trapdoors</a>. Once functional encryption is built, there are existing transformation to iO, they all rely on the concept of extending FE to allow the evaluator to dynamically insert their input bits inside the FE ciphertext. Constructions from <a href="https://eprint.iacr.org/2024/1720">[AKY24b]</a> and <a href="https://www.youtube.com/watch?v=4TR_NCSqG4I&amp;t=321s">[AJ15]</a> obtain iO via a recursive usage of FE that represents the main efficiency bottleneck of current iO constructions. Conversely, our construction <a href="https://eprint.iacr.org/2025/236">[SBP25]</a> buils iO from FE using [AKY24a] in a non-black-box way allowing us to obtain a structure that replaces recursive FE with simple matrix multiplications.</p>
+<h2>Conclusion</h2>
+<p>Throughout the sections, we’ve taken a look at various ways to construct a non-interactive conditional signature printer. Among these attempts, the iO based construction is the only one that strictly satisfies our requirements. Although <a href="https://machina-io.com/posts/hello_world_first.html">we still need to push for its practicality first</a>, we believe iO could unlock applications that were impossible before. We hope you’re as excited as we are about the future possibilities of this technology!</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
