@@ -108,7 +108,7 @@ $$</p>
 </div>
 <p>While we appreciate the non-interactive property of FE decryption we still have a major issue. FE decryption doesn't allow Alice to additionally inject their input $x=7$. How can the key owner allow for the inputs dynamically chosen by Alice (and, potentially, by many other unknown users)? A naive solution is for the key owner to generate a functional key for any possible input combination. Specifically, for each possible input $x_i$, the key owner defines a function $f_{[x_i]}(k)$ that, on input $k$, returns $f(k, x_i)$ where $x_i$ is hardcoded into the function definition. In that scenario, Alice could use the functional key for $f_{[7]}(k)$ and obtain the decrypted value $f(k, 7)$. But this means that the work of the key owner is exponential to the number of input bits. Are we back to square one? Rather than discouraging ourselves, we see the glass half full: we finally found a way to allow for non-interactive decryption binded to a specific function set by the key owner. We just need to add a little piece to it... </p>
 
-<h3>Attempt #4 augmented FE a.k.a. iO</h3>
+<h3>Attempt #4 augmented FE (implying iO)</h3>
 <p>We now imagine a wishful solution: what if the scheme supported an additional API (in blue) that allows Alice to extend the ciphertext provided by the key owner with her dinamically chosen input $x$.</p>
 <p>$$
 \begin{aligned}
@@ -160,7 +160,6 @@ $$</p>
 <div style="display: flex; justify-content: center;">
     <img alt="IO" src="https://hackmd.io/_uploads/B1u0Gf1Elg.png" />
 </div>
-<p>This is exactly the process we followed to build <a href="https://eprint.iacr.org/2025/236">Diamond iO</a>. We started from an existing FE scheme, namely <a href="https://eprint.iacr.org/archive/2024/1719/20241022:040259">[AKY24a]</a>, and figure out a way to allow an evaluator to extend the ciphertext by inserting their dynamically chosen input bits, without requiring exponential effort from the obfuscator point of view.</p>
 <p>The following diagram illustrates the program that we managed to obfuscate. In particular, everything that is inside the dotted rectangle represents our obfuscated program $\tilde{C}$:</p>
 <ul>
 <li>the function definition $f$, made of the set of arithmetic gates to be performed by the program, is public</li>
@@ -174,9 +173,17 @@ $$</p>
 <p>We saw that iO is required to build a non-interactive conditional signature printer and it can be viewed as an extended version of FE that supports ciphertext extension. Now we can finally sketch out a map of the core primitives needed to build iO, with pointers to the main academic references.</p>
 
 <div style="display: flex; justify-content: center;">
-    <img alt="Screenshot 2025-07-01 at 13.35.47" src="https://hackmd.io/_uploads/Syb38abreg.png" />
+    <img alt="Screenshot 2025-07-01 at 13.35.47" src="https://hackmd.io/_uploads/BJuy1ZfSxx.png" />
 </div>
-<p>To build functional encryption, we heavily rely on the construction introduced by <a href="https://eprint.iacr.org/archive/2024/1719/20241022:040259">[AKY24a]</a> which only uses matrix multiplication, <a href="https://www.youtube.com/watch?v=O0NoW4UOd9Y">BGG+ encoding</a> and <a href="https://eprint.iacr.org/2011/501">lattice trapdoors</a>. Once functional encryption is built, there are different ways to obtain iO which we defined under the umbrella and informal term "augmented FE". Constructions from <a href="https://eprint.iacr.org/2024/1720">[AKY24b]</a> and <a href="https://www.youtube.com/watch?v=4TR_NCSqG4I&amp;t=321s">[AJ15]</a> obtain iO via a recursive usage of FE. This represents the main efficiency bottleneck of current iO constructions. Conversely, our construction <a href="https://eprint.iacr.org/2025/236">[SBP25]</a> builds iO from FE using [AKY24a] in a non-black-box way allowing us to replace recursive FE with simple matrix multiplications.</p>
+
+<p>To build functional encryption, we heavily rely on the construction introduced by <a href="https://eprint.iacr.org/archive/2024/1719/20241022:040259">[AKY24a]</a><a href="#fn1" class="footnote-ref">*</a> which only uses matrix multiplication, <a href="https://www.youtube.com/watch?v=O0NoW4UOd9Y">BGG+ encoding</a> and <a href="https://eprint.iacr.org/2011/501">lattice trapdoors</a>. Once functional encryption is built, there are different ways to obtain iO which we defined under the umbrella and informal term "augmented FE". Constructions from <a href="https://eprint.iacr.org/2024/1720">[AKY24b]</a><a href="#fn1" class="footnote-ref">*</a> and <a href="https://www.youtube.com/watch?v=4TR_NCSqG4I&amp;t=321s">[AJ15]</a> obtain iO via a recursive usage of FE. This represents the main efficiency bottleneck of current iO constructions. Conversely, our construction <a href="https://eprint.iacr.org/2025/236">[SBP25]</a><a href="#fn1" class="footnote-ref">*</a> builds iO from FE using [AKY24a] in a non-black-box way allowing us to replace recursive FE with simple matrix multiplications.</p>
+
+<div class="footnotes">
+    <div class="footnote" id="fn1">
+        <span class="footnote-marker">*</span>
+        The construction builds FE/iO only for pseudorandom functions, which can be extended to iO for functions using the transformation from <a href="https://eprint.iacr.org/2024/1742.pdf">[BDJ+24]</a>.
+    </div>
+</div>
 <h2>Conclusion</h2>
 <p>Throughout the sections, we’ve taken a look at various ways to construct a non-interactive conditional signature printer. Among these attempts, the iO based construction is the only one that strictly satisfies our requirements. Although <a href="https://machina-io.com/posts/hello_world_first.html">we still need to push for its practicality first</a>, we believe iO could unlock applications that were impossible before. We hope you’re as excited as we are about the future possibilities of this technology!</p>
             </div>

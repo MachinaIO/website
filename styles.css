@@ -335,3 +335,34 @@ img {
     color: #81a1c1;
     font-weight: bold;
 }
+
+/* Footnote styling */
+.footnote-ref {
+    color: #007bff;
+    text-decoration: none !important;
+    vertical-align: super;
+    font-size: 0.8em;
+    border-bottom: none !important;
+}
+
+.footnotes {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid #ddd;
+    font-size: 0.9em;
+}
+
+.footnote {
+    margin-bottom: 0.5em;
+}
+
+.footnote-marker {
+    color: #000;
+    margin-right: 0.5em;
+}
+
+.footnote-return {
+    color: #007bff;
+    text-decoration: none;
+    margin-left: 0.5em;
+}
