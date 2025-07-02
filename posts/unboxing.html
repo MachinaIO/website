@@ -173,7 +173,7 @@ $$</p>
 <p>We saw that iO is required to build a non-interactive conditional signature printer and it can be viewed as an extended version of FE that supports ciphertext extension. Now we can finally sketch out a map of the core primitives needed to build iO, with pointers to the main academic references.</p>
 
 <div style="display: flex; justify-content: center;">
-    <img alt="Screenshot 2025-07-01 at 13.35.47" src="https://hackmd.io/_uploads/BJuy1ZfSxx.png" />
+    <img alt="Screenshot 2025-07-01 at 13.35.47" src="https://hackmd.io/_uploads/rJNTe-GHxl.png" />
 </div>
 
 <p>To build functional encryption, we heavily rely on the construction introduced by <a href="https://eprint.iacr.org/archive/2024/1719/20241022:040259">[AKY24a]</a><a href="#fn1" class="footnote-ref">*</a> which only uses matrix multiplication, <a href="https://www.youtube.com/watch?v=O0NoW4UOd9Y">BGG+ encoding</a> and <a href="https://eprint.iacr.org/2011/501">lattice trapdoors</a>. Once functional encryption is built, there are different ways to obtain iO which we defined under the umbrella and informal term "augmented FE". Constructions from <a href="https://eprint.iacr.org/2024/1720">[AKY24b]</a><a href="#fn1" class="footnote-ref">*</a> and <a href="https://www.youtube.com/watch?v=4TR_NCSqG4I&amp;t=321s">[AJ15]</a> obtain iO via a recursive usage of FE. This represents the main efficiency bottleneck of current iO constructions. Conversely, our construction <a href="https://eprint.iacr.org/2025/236">[SBP25]</a><a href="#fn1" class="footnote-ref">*</a> builds iO from FE using [AKY24a] in a non-black-box way allowing us to replace recursive FE with simple matrix multiplications.</p>
