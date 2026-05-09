@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machina iO - Blog Post</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="../favicon.ico" type="image/x-icon">
+
+    <!-- MathJax for LaTeX support -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        mjx-container[display="true"] {
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <a href="../index.html">
+                    <img src="../logo.png" alt="Machina iO Logo">
+                </a>
+            </div>
+            <div class="nav">
+                <a href="../about.html">about</a>
+                <a href="../subscribe.html">subscribe</a>
+            </div>
+        </div>
+
+        <div class="post">
+            <div class="post-title">HOW TO MAKE CIRCUIT-SPECIFIC DECRYPTION KEYS FOR FHE?: PART 2</div>
+            <div class="post-date">2026-05-10</div>
+            <div class="content">
+                <h2>FHE vs KHE—Homomorphic Property for Public Keys</h2>
+                <p>Before introducing a formal definition of key-homomorphic encoding (KHE), we highlight the similarities and differences between FHE and KHE. For simplicity, in the discussion below, we replace the trusted committee with a single trusted party.</p>
+                <ul>
+                    <li>In both FHE and KHE, a pair of secret and public keys is sampled by the trusted party. However, whereas in FHE all ciphertexts are associated with the same secret key (decryption key) and public key (encryption key), in KHE, each encoding is associated with the same secret key but with its own distinct public key.</li>
+                    <li>Each FHE ciphertext and each encoding is associated with some plaintext. However, whereas an FHE ciphertext always hides its plaintext, an encoding is in principle revealed to the permissionless server, except in the special case discussed later.</li>
+                    <li>Both FHE and KHE support homomorphic circuit evaluation: that is, a ciphertext/encoding obtained by homomorphically evaluating a circuit is a valid ciphertext/encoding whose plaintext is the output of that circuit. <strong>Moreover, KHE supports homomorphic evaluation of public keys. That is, the public key associated with an encoding of the circuit output can be derived deterministically from the public keys associated with the encodings of the circuit inputs and the circuit description, independently of the input plaintexts.</strong> This feature allows the trusted party, during the initial setup, to prepare in advance a circuit-specific decoding key for a given circuit.</li>
+                </ul>
+
+                <h2>BGG+ Encodings</h2>
+                <p>In what follows, we consider the BGG+ encodings of Boneh et al. [<a href="https://eprint.iacr.org/2014/356.pdf">BGG+14</a>] as a concrete instantiation of KHE, namely the first lattice-based one.</p>
+
+                <p><strong>Notations and definitions.</strong> We briefly summarize the notation used in this post. Let $\mathbb{Z}_{q}$ denote the ring of integers modulo $q$. Vectors and matrices are denoted by bold letters, where vectors are row vectors unless stated otherwise. The underlined terms indicate that small-norm error terms are added.</p>
+
+                <p>The central feature of BGG+ encodings can be stated succinctly as follows: given encodings of distinct $L$ inputs $\mathbf{x} := (x_1, \dots, x_L)$ under the same secret but under distinct public keys, for a circuit $C$, one can <strong>publicly and only publicly</strong> compute output encodings corresponding to the circuit output $C(\mathbf{x})$. Moreover, one can also <strong>publicly and only publicly</strong> derive the public key corresponding to the output encoding; this output public key depends only on the public keys used for the input encodings, and is independent of the concrete input values $\mathbf{x}$.</p>
+
+                <p>Let $n$ be a LWE dimension, and set $m:=n \lceil \log_2 q \rceil$. Intuitively, a BGG+ encoding encodes an integer $x \in \mathbb{Z}_q$ with respect to a secret $\mathbf{s} \in \mathbb{Z}_q^n$ and a public key $\mathbf{A} \in \mathbb{Z}_q^{n \times m}$. Unless one knows the secret $\mathbf{s}$, one cannot separate the encoding from the integer $x$ it encodes; that is, one cannot reinterpret the same encoding as an encoding of a different value $x^{\prime} \neq x$ under the same secret and the same public key.</p>
+
+                <p>Formally, a BGG+ encoding is defined as follows:</p>
+                $$\begin{align}
+                    \mathbf{c}_x := \mathbf{s}\left(\mathbf{A} - x\mathbf{G}\right) + \mathbf{e},
+                \end{align}$$
+                <p>where $\mathbf{e} \in \mathbb{Z}_{q}^{m}$ is a LWE error whose norm (the maximum size of elements in the vector) is bounded, and $\mathbf{G} \in \mathbb{Z}_{q}^{n \times m}$ is a fixed matrix called gadget matrix, in particular:</p>
+                $$\begin{align}
+                    \mathbf{G} &:= \mathbf{I}_{n} \otimes (1, \dots, 2^{\lceil \log_2 q \rceil-1}) \\
+                    &= \begin{pmatrix}
+                        (1, \dots, 2^{\lceil \log_2 q \rceil-1}) & \dots, & \mathbf{0}\\
+                        \vdots & \ddots & \vdots \\
+                        \mathbf{0} & \dots & (1, \dots, 2^{\lceil \log_2 q \rceil-1})
+                    \end{pmatrix}.
+                \end{align}$$
+
+                <p>The key-homomorphic property of BGG+ encodings provides deterministic and public algorithms that allows a permissionless server to evaluate a circuit over public keys and encodings, with the following syntax:</p>
+                <ul>
+                    <li>$\textsf{EvalPK}(C, (\mathbf{A}_1, \dots, \mathbf{A}_L)) \rightarrow \mathbf{A}_C$: given a circuit $C$ with $L$ inputs and 1 output, and $L$ input public keys $(\mathbf{A}_1, \dots, \mathbf{A}_L) \in \mathbb{Z}_{q}^{n  \times Lm}$, it returns an output public key $\mathbf{A}_C$.</li>
+                    <li>$\textsf{EvalEnco}(C, (\mathbf{A}_1, \dots, \mathbf{A}_L), \mathbf{x}, (\mathbf{c}_{x_1}, \dots, \mathbf{c}_{x_L})) \rightarrow \mathbf{c}_{C(\mathbf{x})}$: given a circuit $C$ with $L$ inputs and 1 output, and $L$ input public keys $(\mathbf{A}_1, \dots, \mathbf{A}_L) \in \mathbb{Z}_{q}^{n \times Lm}$, input integers $\mathbf{x} \in \mathbb{Z}_{q}^{L}$, and $L$ input encodings $(\mathbf{c}_{x_1}, \dots, \mathbf{c}_{x_L}) \in \mathbb{Z}_{q}^{Lm}$, it returns an output encoding $\mathbf{c}_{C(\mathbf{x})}$.</li>
+                </ul>
+
+                <p>As we explain in more detail later, in our setting of constructing circuit-specific FHE decryption keys, the circuit to be evaluated is the one representing FHE homomorphic evaluation and decryption.</p>
+
+                <p>These outputs satisfy the following equation:</p>
+                $$\begin{align}
+                    \mathbf{c}_{C(\mathbf{x})} = \mathbf{s}(\mathbf{A}_{C} - C(\mathbf{x})\mathbf{G}) + \mathbf{e}_{C(\mathbf{x})},
+                \end{align}$$
+                <p>where $\mathbf{e}_{C(\mathbf{x})} \in \mathbb{Z}_{q}^{m}$ is some norm-bounded error. These homomorphic evaluations are realized by defining Boolean-gate operations (e.g., NAND) on both public keys and encodings, and then representing the target circuit as a Boolean circuit.</p>
+
+                <p>Intuitively, one can find that the circuit output $C(\mathbf{x})$ in the second term is hidden by the mask $\mathbf{s}\mathbf{A}_{C}$ in the first term (for now, please ignore the fact that $C(\mathbf{x})$ is also multiplied by the secret $\mathbf{s}$ and the gadget matrix $\mathbf{G}$, and that the error $\mathbf{e}_{C(\mathbf{x})}$ is added). Since that mask is tied to a specific circuit $C$ but is independent of the input $\mathbf{x}$, if a trusted party who holds the secret key $\mathbf{s}$ publishes the corresponding mask $\underline{\mathbf{s}\mathbf{A}_{C}}$ as a <strong>decoding key specific to the circuit $C$</strong> in advance, a permissionless server performing the homomorphic evaluation can recover the output $C(\mathbf{x})$ <strong>non-interactively</strong>. Even if a malicious server tries to decode an output encoding obtained by evaluating a circuit $C^{\prime}$ different from $C$, the decoding key $\underline{\mathbf{s}\mathbf{A}_{C}}$ is useless because that output encoding is masked by $\mathbf{s}\mathbf{A}_{C^{\prime}} \neq \mathbf{s}\mathbf{A}_{C}$.</p>
+
+                <p>Unfortunately, the story does not end so neatly. In fact, as suggested by the fact that $\mathbf{x}$ appears as an argument of $\textsf{EvalEnco}$, homomorphic evaluation of encodings can handle only <strong>public inputs</strong>, so we cannot naively treat BGG+ encodings as a drop-in replacement for FHE. More precisely, for multiplication between encodings, at least one of the two inputs must be known to the server. Therefore, naïve BGG+ encodings natively support only multiplication where <strong>at least one multiplicand is public</strong>. Note that multiplying a private input by a public input is still possible, and we will later exploit this property.</p>
+
+                <h2>FHE Evaluation and Decryption on BGG+ Encodings</h2>
+                <p>A well-known approach to enable private multiplication over BGG+ encodings is to combine them with FHE [<a href="https://eprint.iacr.org/2015/029.pdf">GVW15</a>, <a href="https://eprint.iacr.org/2017/795.pdf">BTW+17</a>, <a href="https://eprint.iacr.org/2023/1716.pdf">HLL23</a>, <a href="https://eprint.iacr.org/2024/1719.pdf">AKY24</a>]. Specifically, one encrypts <strong>private inputs under FHE</strong> and <strong>encodes FHE ciphertexts as public inputs over BGG+ encodings</strong>. Then, a circuit $C$ evaluated over these encodings is defined to simulate homomorphic evaluation of FHE. More formally, when $\mathbf{x} := \textsf{fhe}(\mathbf{z})$ represents a FHE encryption of the private input $\mathbf{z}$, and $F$ is an application-specific circuit being evaluated under FHE, $C_F(\mathbf{x})$ will be the FHE encryption of $F(\mathbf{z})$, i.e., $C_F(\mathbf{x}) = \textsf{fhe}(F(\mathbf{z}))$. More concretely, $\textsf{fhe}(F(\mathbf{z}))$ is implemented as a Boolean circuit $C_F$ by representing the homomorphic evaluation algorithm for each FHE primitive operation (e.g., addition and multiplication) as a Boolean circuit, and then composing them according to the gate structure of the circuit $F$.</p>
+
+                <p>We emphasize that this approach stays within the limitations of BGG+ encodings, since the input to the circuit $C_F$, i.e., $\mathbf{x}$, is a public FHE ciphertext available to the server. At the same time, this is a major practical bottleneck, because evaluating such a circuit over BGG+ encodings effectively multiplies the overhead of the encodings by the overhead of FHE.</p>
+
+                <p>The above description still faces the same fundamental limitation of FHE. Namely, converting the output ciphertext $\textsf{fhe}(F(\mathbf{z}))$ into the plaintext $F(\mathbf{z})$ requires the FHE decryption key, but if we simply publish the decryption key $\mathbf{d}$ as is, an adversary would also be able to decrypt the input ciphertext $\textsf{fhe}(\mathbf{z})$. Instead, the trusted party provides the server with <strong>an encoding of $\mathbf{d}$</strong> and forces the server to carry out the FHE decryption procedure <strong>over the encodings</strong>, without revealing $\mathbf{d}$ itself.</p>
+
+                <p>Recall that BGG+ encoding can still natively support homomorphic multiplication between private and public inputs. Therefore, if the decryption procedure can be written as a linear polynomial in the decryption key $\mathbf{d}$, where the coefficients are derived from the ciphertext being decrypted, then the server can evaluate the decryption procedure over the encodings by treating $\mathbf{d}$ as a private input and the ciphertext as a public input, without ever accessing the decryption key $\mathbf{d}$. Fortunately, most lattice-based FHE schemes satisfy this property, because their decryption procedure (ignoring the final rounding step to remove small errors) can be expressed as an inner product between the decryption-key vector $\mathbf{d}$ and the ciphertext vector. Hence, most lattice-based FHE ciphertexts can be decrypted over BGG+ encodings.</p>
+
+                <p>To summarize the discussion above, in order to support multiplication across multiple private inputs, the server evaluates the following circuit $C_F$ over the input BGG+ encodings that encode 1) the FHE decryption key vector $\mathbf{d}$ and 2) an FHE ciphertext $\textsf{fhe}(\mathbf{z})$ of the private inputs $\mathbf{z}$:</p>
+                <ol>
+                    <li>Evaluate the application-specific circuit $F$ on the input ciphertext $\textsf{fhe}(\mathbf{z})$, obtaining the output ciphertext $\textsf{fhe}(F(\mathbf{z})).$</li>
+                    <li>Compute the inner product between $\mathbf{d}$ and $\textsf{fhe}(F(\mathbf{z}))$, obtaining a noisy decryption result $\underline{F(\mathbf{z})}$.</li>
+                    <li>Output $\underline{F(\mathbf{z})}$.</li>
+                </ol>
+
+                <p>In practice, additional steps are needed—for example, to ensure that $F(\mathbf{z})$ can be reliably extracted from the noisy decryption result, and to hide the error added to $F(\mathbf{z})$ for security—but we omit those details here [<a href="https://eprint.iacr.org/2024/1719.pdf">AKY24</a>].</p>
+
+                <h2>Connection to the Circuit-specific Decryption Key</h2>
+                <p>Recall that, in the example of confidential voting using a circuit-specific decryption key, a permissionless server receives, during the setup phase, the decryption key for a legitimate circuit $F$ from a trusted party, and FHE-encrypted votes from users during the voting phase. In the tallying phase, the server homomorphically evaluates the circuit $F$ to obtain an encryption of the vote tally, and then decrypts it using the provided decryption key, without interacting with either the trusted party or the users.</p>
+
+                <p>In this example case, the circuit-specific decryption key for $F$ allows the server to obtain 1) the input BGG+ encodings of the FHE decryption key $\mathbf{d}$ and the encrypted votes $\textsf{fhe}(\mathbf{z})$, namely $\underline{\mathbf{s}\left((\mathbf{A}_1,\dots,\mathbf{A}_L) - (\mathbf{d},\textsf{fhe}(\mathbf{z})) \otimes \mathbf{G} \right)}$ and 2) the decoding key specific to the circuit $C_F$ defined above, namely $\underline{\mathbf{s}\mathbf{A}_{C_F}}$. Using these data, the server can non-interactively recover the vote tally in plaintext by evaluating $C_F$ over the input encodings, obtaining the output encoding $\underline{\mathbf{s}\mathbf{A}_{C_F} + F(\mathbf{z})}$, and then removing the decoding key from the output encoding.</p>
+
+                <p>However, the above construction still has a missing piece: since the server does not know the secret key $\mathbf{s}$, it cannot create the input BGG+ encodings. Nor can the trusted party provide such encodings to the server, because it must prepare all the data during the setup phase, before the users provide $\textsf{fhe}(\mathbf{z})$.</p>
+
+                <p>In the final article, we will explain how to fill this missing piece. In fact, this is what upgrades the combination of BGG+ encodings and FHE into indistinguishability obfuscation.</p>
+
+                <h2>Appendix: Key-Homomorphic Addition and Multiplication of BGG+ Encodings</h2>
+                <p>Recall that the $\textsf{EvalPK}$ and $\textsf{EvalEnco}$ algorithms are built from addition and multiplication operations on both public keys and encodings. In the following, we concretely show how these operations are instantiated.</p>
+
+                <p>Let $\mathbf{c}_1 := \mathbf{s}\left(\mathbf{A}_1 - x_1\mathbf{G}\right) + \mathbf{e}_1$ and $\mathbf{c}_2 := \mathbf{s}\left(\mathbf{A}_2 - x_2\mathbf{G}\right) + \mathbf{e}_2$ be input encodings of $x_1$ and $x_2$, respectively. Their key-homomorphic addition is trivial:</p>
+                $$\begin{align}
+                    \mathbf{c}_{1 + 2} &:= \mathbf{c}_1 + \mathbf{c}_2\\
+                    &= \mathbf{s}\left((\mathbf{A}_1 + \mathbf{A}_2) - (x_1 + x_2) \mathbf{G}\right) + (\mathbf{e}_1 + \mathbf{e}_2).
+                \end{align}$$
+
+                <p>One can find that the public key in $\mathbf{c}_{1+2}$, namely $\mathbf{A}_{1+2} := \mathbf{A}_1 + \mathbf{A}_2$ can be publicly derived only from input public keys $\mathbf{A}_1$ and $\mathbf{A}_2$. Therefore, for an addition gate, we can have $\textsf{EvalPK}$ and $\textsf{EvalEnco}$ algorithms output $\mathbf{A}_{1+2}$ and $\mathbf{c}_{1 + 2}$.</p>
+
+                <p>A key-homomorphic multiplication is a bit complex. Let $\mathbf{G}^{-1}(\mathbf{A}_{2}) \in \{0,1\}^{m \times m}$ be a bit-decomposed matrix of $\mathbf{A}_{2}$, where it holds</p>
+                $$\begin{align}
+                    \mathbf{G} \mathbf{G}^{-1}(\mathbf{A}_{2}) = \mathbf{A}_{2}.
+                \end{align}$$
+                <p>Notably, the norm of $\mathbf{G}^{-1}(\mathbf{A}_{2})$ is small since its elements are bits.</p>
+
+                <p>Then a multiplication between encodings $\mathbf{c}_1$ and $\mathbf{c}_2$ is defined as follows:</p>
+                $$\begin{align}
+                    \mathbf{c}_{1 \times 2} &:= \mathbf{c}_1\mathbf{G}^{-1}(\mathbf{A}_{2}) + x_1 \mathbf{c}_{2} \\
+                    &= \left(\mathbf{s}\mathbf{A}_{1}\mathbf{G}^{-1}(\mathbf{A}_{2}) - x_1\mathbf{s}\mathbf{A}_{2} + \mathbf{e}_1\mathbf{G}^{-1}(\mathbf{A}_{2})\right) + \left(x_1\mathbf{s}\mathbf{A}_{2} - x_1x_2\mathbf{G} + x_1\mathbf{e}_2\right) \\
+                    &= \mathbf{s}\left(\mathbf{A}_{1}\mathbf{G}^{-1}(\mathbf{A}_{2}) - x_1x_2\mathbf{G}\right) + (\mathbf{e}_1\mathbf{G}^{-1}(\mathbf{A}_{2}) + x_1\mathbf{e}_2).
+                \end{align}$$
+                <p>The corresponding public key is defined by $\mathbf{A}_{1 \times 2} := \mathbf{A}_{1}\mathbf{G}^{-1}(\mathbf{A}_{2})$, which is also publicly derived only from input public keys $\mathbf{A}_1$ and $\mathbf{A}_2$. Besides, the error term $(\mathbf{e}_1\mathbf{G}^{-1}(\mathbf{A}_{2}) + x_1\mathbf{e}_2)$ is norm-bounded <strong>as long as $x_1$ is small</strong>. Actually, this error increase by $x_1$ makes a limitation that BGG+ encodings can evaluate only a Boolean circuit, rather than a large arithmetic circuit, within a practical parameter.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
