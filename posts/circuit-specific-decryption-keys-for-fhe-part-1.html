@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machina iO - Blog Post</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="../favicon.ico" type="image/x-icon">
+
+    <!-- MathJax for LaTeX support -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Mermaid for diagrams -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+    </script>
+    <style>
+        .diagram-scroll {
+            overflow-x: auto;
+            margin: 2rem 0 0.5rem;
+        }
+
+        .mermaid {
+            min-width: 720px;
+            text-align: center;
+        }
+
+        .figure-caption {
+            font-family: 'Georgia', serif;
+            font-size: 0.95rem;
+            color: #555;
+            margin: 0 0 2rem;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <a href="../index.html">
+                    <img src="../logo.png" alt="Machina iO Logo">
+                </a>
+            </div>
+            <div class="nav">
+                <a href="../about.html">about</a>
+                <a href="../subscribe.html">subscribe</a>
+            </div>
+        </div>
+
+        <div class="post">
+            <div class="post-title">HOW TO MAKE CIRCUIT-SPECIFIC DECRYPTION KEYS FOR FHE?: PART 1</div>
+            <div class="post-date">2026-05-09</div>
+            <div class="content">
+                <h2>Inherent Limitation in FHE</h2>
+                <p>Fully homomorphic encryption (FHE) is one of the holy grails of cryptography: it allows ciphertexts of private inputs to be handed to an untrusted, permissionless server, which can then perform arbitrary computations on those ciphertexts while keeping the inputs confidential. In many FHE-based applications on blockchains, some private inputs are provided by users other than the trusted party (or trusted committee) that holds the key for decrypting FHE ciphertexts, or private state is maintained that no single party should be able to learn, as in settings such as <a href="https://github.com/zama-ai/fhevm/blob/main/fhevm-whitepaper.pdf">FHE-based confidential smart contracts</a>.</p>
+
+                <p>These settings bring an inherent limitation of FHE to the surface: recovering the output of a computation in plaintext—for example, revealing only the tally of multiple voters’ ballots in an FHE-based voting system—ultimately requires the server to rely on a trusted party (or trusted committee) that holds the decryption key and decrypts the output ciphertexts produced by the homomorphic computation. This creates a significant security risk: a compromised key holder could either decrypt ciphertexts without authorization, threatening safety, or refuse to decrypt output ciphertexts computed from those users’ inputs, threatening liveness. This risk is especially severe in settings where a breach of safety would immediately yield substantial profit to an adversary—for example, in a Bitcoin bridge in which the private key of a deposit address is managed in encrypted form under FHE.</p>
+
+                <p>Addressing this risk will not only enhance the security of existing applications but also make it possible to realize confidential smart contract applications at a scale that has previously been infeasible due to the trust assumption placed on a committee. This is because, in large-scale applications such as electronic voting in presidential elections, users hold diverse values and conflicting interests, making it difficult to establish a committee that all of them are willing to trust. If we can eliminate the need for ongoing reliance on a committee for FHE decryption, then, as we discuss later, we would only need to engage a committee for the initial setup, which is already widely used in pairing-based SNARKs. Therefore, removing the ongoing reliance allows us to establish a more trustworthy committee.</p>
+
+                <h2>Concept of Circuit-Specific Decryption Keys</h2>
+                <p>A natural “wish list” solution to overcome this limitation is something we call a <strong>circuit-specific decryption key</strong>. Instead of a decryption key that can decrypt <em>any</em> ciphertexts, we want a key that can decrypt <em>only</em> ciphertexts that are valid outputs of homomorphic evaluation for a specific circuit $C$ and is useless on everything else.</p>
+
+                <p>If such keys existed, the trusted party could publish circuit-specific keys only for circuits that are legitimate within the application. Then a permissionless server could run homomorphic computation and obtain plaintext results <strong>non-interactively</strong>, without having to interact with the trusted party after every computation. At the same time, an adversary would not be able to use the published keys to decrypt ciphertexts corresponding to outputs of illegitimate circuits.</p>
+
+                <p><strong>Example: confidential online voting.</strong> For example, one can instantiate a confidential smart contract for online voting, where each user’s vote (for or against) remains private, and only the total number of “for” votes becomes publicly available, as follows:</p>
+                <ol>
+                    <li><strong>Trusted setup phase.</strong> Let $C$ be a legitimate circuit that on inputs multiple votes outputs the total number of “for” votes. A trusted party samples an FHE encryption key and a decryption key specific to $C$, publishes these keys, and deploys a public smart contract for this application.</li>
+                    <li><strong>Voting phase.</strong> Each user encrypts their vote under the provided encryption key and submits this encrypted vote to the smart contract.</li>
+                    <li><strong>Tallying phase.</strong> A permissionless server takes as input the encrypted votes submitted to the smart contract, homomorphically evaluates the circuit $C$ under FHE, and obtains an output ciphertext. The server then decrypts the output ciphertext using the $C$-specific decryption key, thereby recovering the desired vote tally in plaintext.</li>
+                </ol>
+
+                <div class="diagram-scroll">
+                    <pre class="mermaid">sequenceDiagram
+    participant U as Users (Voters)
+    participant SC as Smart Contract
+    participant S as Permissionless Server
+    participant T as Trusted Party (Key Holder)
+
+    Note over T: === Setup Phase ===
+    T->>T: Generate FHE key pair (pk, sk)
+    T->>SC: Publish public key pk
+    T-->>T: Retain secret key sk
+
+    Note over U: === Voting Phase ===
+    U->>SC: Submit Enc(pk, vote)
+
+    Note over S: === Tallying Phase ===
+    S->>SC: Fetch encrypted votes
+    S->>S: Homomorphically evaluate circuit C
+    S->>T: Send output ciphertext Enc(pk, tally)
+    T->>T: Decrypt with sk → tally
+    T->>S: Return plaintext tally
+    S->>SC: Publish tally result
+
+    Note over T: ⚠ Trusted Party must be online for every tallying operation
+    Note over T: ⚠ Leaked sk can decrypt all votes</pre>
+                </div>
+                <p class="figure-caption">Figure 1: Online Voting with Standard FHE.</p>
+
+                <div class="diagram-scroll">
+                    <pre class="mermaid">sequenceDiagram
+    participant U as Users (Voters)
+    participant SC as Smart Contract
+    participant S as Permissionless Server
+    participant T as Trusted Party (Committee)
+
+    Note over T: === Setup Phase ===
+    T->>T: Generate FHE keys (pk, sk_C)
+    T->>SC: Publish public key pk
+    T->>SC: Publish circuit-specific decryption key sk_C
+    Note over T: Can go offline after setup
+
+    Note over U: === Voting Phase ===
+    U->>SC: Submit Enc(pk, vote)
+
+    Note over S: === Tallying Phase ===
+    S->>SC: Fetch encrypted votes
+    S->>S: Homomorphically evaluate circuit C
+    S->>S: Decrypt output ciphertext with sk_C → tally
+    S->>SC: Publish tally result
+
+    Note over T: ✅ Trusted Party not needed after setup
+    Note over T: ✅ sk_C cannot decrypt ciphertexts outside circuit C outputs</pre>
+                </div>
+                <p class="figure-caption">Figure 2: Online Voting with Circuit-Specific Decryption Key.</p>
+
+                <p>The above construction in Figure 2 still requires an initial trusted setup by a trusted party—or, more realistically, by a committee holding shares of a secret random seed used to derive the publicly released keys. We believe that such an initial trusted setup is inherent to confidential smart contracts, regardless of the cryptographic primitive used. This is because, in order to encrypt private data that no single party should ever learn—such as intermediate computation values or private state—one must generate secret keys that are themselves unknown to any single party.</p>
+
+                <p>However, unlike existing MPC- or FHE-based confidential smart contract constructions in Figure 1, the construction with the $C$-specific decryption key does not need to rely on that committee after the setup phase. This leads to a concrete difference in the parameter choices. If performing any operation that depends on the secret random seed requires the cooperation of at least a threshold of $t$ committee members, then for the <strong>safety</strong> of the application, users must assume that fewer than $t$ committee members are malicious. Moreover, if the application continues to rely on the committee even after the setup phase, then for <strong>liveness</strong>, users must assume that at least $t$ committee members remain online at all times.</p>
+
+                <p>Existing MPC- and FHE-based confidential smart contract constructions require that <em>both</em> of these safety and liveness properties hold, so $t$ cannot be set too high; for example, if $t$ equals the total number of committee members, the application becomes inoperable as soon as even a single member goes offline. Benhamouda et al. analyze that, in a realistic setting for blockchain use cases, the threshold is set to approximately half the committee size, and both safety and liveness are satisfied when the fraction of corrupted parties remains strictly below $1 - \sqrt{0.5} \approx 0.29$.</p>
+
+                <p>In contrast, in the above construction that assumes the circuit-specific decryption key, the committee is not needed after the trusted setup phase, so no liveness assumption is required. As a result, one can take $t$ as large as possible—without risking the application becoming inoperable—and thereby make the safety assumption as weak as possible (i.e., the easiest for the application to satisfy).</p>
+
+                <h2>Key-Homomorphic Encoding: A Key Ingredient for Circuit-Specific Decryption Keys</h2>
+
+                <p>We leverage a cryptographic object called <strong>key-homomorphic encoding (KHE)</strong> as a concrete way to realize circuit-specific decryption keys. At a high level, in similar to FHE, KHE allows a permissionless server to homomorphically compute output encodings from input encodings corresponding to evaluating a circuit on those inputs, <strong>without interacting with the trusted party</strong>. However, unlike FHE, the committee for the initial trusted setup can generate and pre-distribute a <strong>circuit-specific decoding key</strong> that enables the server to decode encodings <strong>only for the outputs of a particular circuit</strong>, and recover those outputs in plaintext <strong>without interacting with the committee</strong>. By combining these, the server can obtain the result of FHE homomorphic evaluation and decryption <strong>non-interactively in plaintext</strong> but only for a circuit specified by the trusted party.</p>
+
+                <p><strong>Goal of posts.</strong> The following posts <strong>do not</strong> aim to introduce a fundamentally new academic idea; instead, they consolidate what is already known about KHE and its applications into a single narrative, and invites cryptographers in the Ethereum ecosystem to work on improving their efficiency.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
