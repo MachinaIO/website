@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machina iO - Blog Post</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="../favicon.ico" type="image/x-icon">
+
+    <!-- MathJax for LaTeX support -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        mjx-container[display="true"] {
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <a href="../index.html">
+                    <img src="../logo.png" alt="Machina iO Logo">
+                </a>
+            </div>
+            <div class="nav">
+                <a href="../about.html">about</a>
+                <a href="../subscribe.html">subscribe</a>
+            </div>
+        </div>
+
+        <div class="post">
+            <div class="post-title">HOW TO MAKE CIRCUIT-SPECIFIC DECRYPTION KEYS FOR FHE?: PART 3</div>
+            <div class="post-date">2026-05-10</div>
+            <div class="content">
+                <p>We finally discuss the final missing part for realizing a circuit-specific decryption key. We also show how this straightforwardly implies indistinguishability obfuscation (iO).</p>
+
+                <p>Recall that that missing part is a process to allow the server to insert some new public inputs, which are encrypted votes in the case of online voting, to the BGG+ encodings provided by the trusted party. For simplicity, we formalize this problem as follows: provided $L$-bit public inputs $\mathbf{x}_L \in \{0,1\}^{L}$ and some helper data that depends on private inputs $\mathbf{d} \in \{0,1\}^{K}$ but is independent of $\mathbf{x}_L$, the server should be able to obtain the BGG+ encodings of $(\mathbf{d}, \mathbf{x}_L)$:</p>
+                $$\begin{align}
+                    \mathbf{c}_{\mathbf{x}_L} &:= \underline{\mathbf{s}\left(\mathbf{A}_{\mathbf{x}_L} - (\mathbf{d}, \mathbf{x}_{L}) \otimes \mathbf{G}\right)}\\
+                    &= \left(\underline{\mathbf{s}\left(\mathbf{A}_{\mathbf{x}_L,0} - \mathbf{d} \otimes \mathbf{G}\right)}, \underline{\mathbf{s}\left(\mathbf{A}_{\mathbf{x}_L,1} - x_{L,1} \mathbf{G}\right)}, \dots, \underline{\mathbf{s}\left(\mathbf{A}_{\mathbf{x}_L,L} - x_{L,L} \mathbf{G}\right)} \right),
+                \end{align}$$
+                <p>where $\mathbf{A}_{\mathbf{x}_L} \in \mathbb{Z}_{q}^{n \times (K+L)m}$ is a set of public keys for $\mathbf{d}$ and $\mathbf{x}_L$ that <em>might</em> depend on $\mathbf{x}_L$, and $x_{L,i}$ is the $i$-th bit of $\mathbf{x}_L$.</p>
+
+                <p>An additional constraint is that the trusted party should be able to efficiently derive the public keys corresponding to the circuit $C_F$ before learning the server's public inputs $\mathbf{x}_L$; otherwise, the trusted party cannot release the $C_F$-specific decoding key $\underline{\mathbf{s}\mathbf{A}_{C_F}}$ in the setup phase. However, this leads to the following tension in the definition of the input public keys $\mathbf{A}_{\mathbf{x}_L}$.</p>
+                <ul>
+                    <li>If they depend on the public inputs $\mathbf{x}_L$, then the public key of the circuit output, namely $\mathbf{A}_{C_F}$, depends not only on the circuit but also on the public keys of the inputs. As a result, the trusted party must prepare a separate decoding key for each possible public input, causing the total size of the decoding keys to grow by a factor of $2^L$.</li>
+                    <li>On the other hand, if they are assumed to be independent of the public inputs $\mathbf{x}_L$, then the BGG+ encodings become insecure. Concretely, a malicious server can obtain two encodings that differ only in the $i$-th bit, for example $\underline{\mathbf{s}\left(\mathbf{A} - (\mathbf{d},1)\otimes \mathbf{G}\right)}$ and $\underline{\mathbf{s}\left(\mathbf{A} - (\mathbf{d},0)\otimes \mathbf{G}\right)}$. Since $\mathbf{A}$ is common to both encodings, taking their difference cancels the mask $\mathbf{s}\mathbf{A}$, and the server obtains $\mathbf{s}\mathbf{G} + \mathbf{e}$ for some small error term $\mathbf{e}$. This is known to be an easy LWE instance to solve, and the server can eventually recover the secret key $\mathbf{s}$.</li>
+                </ul>
+
+                <p>Diamond iO, a lattice-based iO scheme our team proposed [<a href="https://eprint.iacr.org/2025/236">SBP25</a>], resolves this tension by embedding the input-dependency into the secret key rather than the public keys. From this point onward, we denote by $\mathbf{s}_{\mathbf{x}_L}$ the secret key corresponding to the public input $\mathbf{x}_L$, and use $\mathbf{A}$ to denote the input public keys. Then the input encodings obtained by the server for the public input $\mathbf{x}_L$ are re-defined as follows:</p>
+                $$\begin{align}
+                    \mathbf{c}_{\mathbf{x}_L} &:= \underline{\mathbf{s}_{\mathbf{x}_L}\left(\mathbf{A} - (\mathbf{d}, \mathbf{x}_{L}) \otimes \mathbf{G}\right)}
+                \end{align}$$
+
+                <p>Intuitively, this prevents the difference attack described above, since the masks of two encodings that differ in that input bit, namely $\mathbf{s}_{1}\mathbf{A}$ and $\mathbf{s}_{0}\mathbf{A}$, cannot be canceled out against each other, at least not in any obvious way. Indeed, if each secret key $\mathbf{s}_{\mathbf{x}_L}$ are sampled independently from the secret keys corresponding to all other inputs, this intuition would follow from the (subexponential hardness of the) LWE assumption.</p>
+
+                <p>However, for reasons we explain shortly, we actually sample the secret keys corresponding to different inputs in a way that makes them not fully independent of one another. Specifically, Diamond iO, a lattice-based iO scheme we have introduced, defines the secret key for the inputs $\mathbf{x}_L \in \{0,1\}^{L}$ as follows:</p>
+                $$\begin{align}
+                    \mathbf{s}_{\mathbf{x}_L} := \mathbf{s}_{\epsilon} \prod_{j \in [L]} \mathbf{S}_{j,x_j},
+                \end{align}$$
+                <p>where $\mathbf{s}_{\epsilon} \in \{0, \pm 1\}^{n}$ is a uniformly random vector, and each $\mathbf{S}_{j,x_j} \in \{0, \pm 1\}^{n \times n}$ is sampled independently and uniformly at random for every $j \in [L]$ and $x_j \in \{0,1\}$. Diamond iO introduces a new lattice-based assumption, called all-product LWE, under which the resulting construction can be justified as secure against the difference attack.</p>
+
+                <p>We now turn to the question of how the server can sample the secret key $\mathbf{s}_{\mathbf{x}_L}$ as a function of the public input, without learning the secret key itself. A natural tool for this is the <strong>GGH15 encoding</strong>. Its key feature is that, with only $O(L)$ pieces of helper data, one can generate encodings corresponding to all $2^L$ patterns of a length-$L$ binary branching process. In the original GGH15 picture, this means that one can derive encodings corresponding to all $2^L$ products of secret matrices chosen along a binary path. We use exactly this idea here because our input-dependent secret key is itself defined as a product of one secret matrix per input bit. More specifically, rather than asking the server to explicitly learn $\mathbf{s}_{\mathbf{x}_L}$, we let it derive an encoding whose hidden secret part evolves exactly according to this product as it inserts the bits of $\mathbf{x}_L$ one by one.</p>
+
+                <p>To make this possible, the trusted party does not initially hand the server a BGG+ encoding. Instead, it provides an initial <strong>GGH15 encoding</strong> of the form</p>
+                $$\begin{align}
+                    \mathbf{p}_{\epsilon}
+                    := \underline{\left((\mathbf{d}, \mathbf{0}_{L}) \otimes \mathbf{s}_{\epsilon}\right)\mathbf{B}_{0}},
+                \end{align}$$
+                <p>where $\mathbf{B}_{0}$ is a public matrix sampled by the trusted party. More generally, after the first $i$ input bits have been inserted, the target encoding is</p>
+                $$\begin{align}
+                    \mathbf{p}_{\mathbf{x}_i}
+                    := \underline{\left((\mathbf{d}, \mathbf{x}_{i}, \mathbf{0}_{(L-i)}) \otimes \mathbf{s}_{\mathbf{x}_{i}}\right)\mathbf{B}_{i}},
+                \end{align}$$
+                <p>where $\mathbf{x}_i := (x_1,\dots,x_i)$ and</p>
+                $$\begin{align}
+                    \mathbf{s}_{\mathbf{x}_{i}} := \mathbf{s}_{\epsilon}\prod_{j \in [i]} \mathbf{S}_{j,x_j}.
+                \end{align}$$
+                <p>Thus, the server’s goal is to start from $\mathbf{p}_{\epsilon}$ and update it step by step until it reaches $\mathbf{p}_{\mathbf{x}_L}$.</p>
+
+                <p>The bridge that enables these updates is a standard lattice object called a <strong>preimage</strong>. Given a public matrix $\mathbf{B}$ and a target matrix $\mathbf{P}$, a lattice preimage of $\mathbf{P}$ with respect to $\mathbf{B}$ is a matrix $\mathbf{K}$ such that</p>
+                $$\begin{align}
+                    \mathbf{B}\mathbf{K} = \mathbf{P}.
+                \end{align}$$
+                <p>In what follows, we use $\mathbf{K} \leftarrow \mathbf{B}^{-1}(\mathbf{P})$ to denote the procedure that generates a preimage $\mathbf{K}$ satisfying the above equation. Notably, a preimage for a uniformly random matrix $\mathbf{B}$ can be generated efficiently only by someone who possesses a trapdoor sampled together with $\mathbf{B}$. Therefore, only the trusted party can decide for which target matrices preimages will be generated and published in the setup phase, whereas a malicious adversary, who sees only $\mathbf{B}$ but does not know its trapdoor, cannot efficiently create such preimages on its own.</p>
+
+                <p>What makes this useful is not only that multiplying by $\mathbf{K}$ transforms the encoded public part in a controlled way, but also that $\mathbf{K}$ can be sampled with <strong>small norm</strong> using a trapdoor for $\mathbf{B}$. Consequently, even if an encoding contains an error term $\mathbf{e}$, the size of the new error after multiplication, namely $\mathbf{e}\mathbf{K}$, remains bounded because the norm of $\mathbf{K}$ is bounded.</p>
+
+                <p>For every position $i \in [L]$ and bit $b \in \{0,1\}$, the trusted party prepares one preimage $\mathbf{K}_{i,b}$. To define its target, let $\mathbf{U}_{i,b}$ be a public matrix that writes the bit $b$ into the next empty input slot, namely one that satisfies</p>
+                $$\begin{align}
+                    (\mathbf{d}, \mathbf{x}_{i-1}, \mathbf{0}_{(L-i+1)})\mathbf{U}_{i,b}
+                    = (\mathbf{d}, \mathbf{x}_{i-1}, b, \mathbf{0}_{(L-i)}).
+                \end{align}$$
+                <p>The preimage $\mathbf{K}_{i,b}$ is then sampled so that</p>
+                $$\begin{align}
+                    \mathbf{B}_{i-1}\mathbf{K}_{i,b}
+                    = (\mathbf{U}_{i,b} \otimes \mathbf{S}_{i,b})\mathbf{B}_{i} + \mathbf{E}_{i,b},
+                \end{align}$$
+                <p>where $\mathbf{E}_{i,b}$ is a small error matrix. Since the target contains both $\mathbf{U}_{i,b}$ and $\mathbf{S}_{i,b}$, multiplying by $\mathbf{K}_{i,b}$ updates <strong>both</strong> the visible input prefix and the hidden secret key at the same time.</p>
+
+                <p>Indeed, if the server already holds the GGH15 encoding</p>
+                $$\begin{align}
+                    \mathbf{p}_{\mathbf{x}_{i-1}}
+                    = \underline{\left((\mathbf{d}, \mathbf{x}_{i-1}, \mathbf{0}_{1 \times (L-i+1)}) \otimes \mathbf{s}_{\mathbf{x}_{i-1}}\right)\mathbf{B}_{i-1}},
+                \end{align}$$
+                <p>then by multiplying it by the preimage corresponding to the actual next input bit $x_i$, it obtains</p>
+                $$\begin{align}
+                    \mathbf{p}_{\mathbf{x}_{i}}
+                    := \mathbf{p}_{\mathbf{x}_{i-1}}\mathbf{K}_{i,x_i}
+                    = \underline{\left((\mathbf{d}, \mathbf{x}_{i}, \mathbf{0}_{(L-i)}) \otimes \mathbf{s}_{\mathbf{x}_{i}}\right)\mathbf{B}_{i}},
+                \end{align}$$
+                <p>where</p>
+                $$\begin{align}
+                    \mathbf{s}_{\mathbf{x}_{i}} = \mathbf{s}_{\mathbf{x}_{i-1}}\mathbf{S}_{i,x_i}.
+                \end{align}$$
+                <p>So each multiplication by $\mathbf{K}_{i,x_i}$ performs exactly one step of <strong>input insertion</strong>. Starting from $\mathbf{p}_{\epsilon}$ and multiplying</p>
+                $$\begin{align}
+                    \mathbf{K}_{1,x_1}, \mathbf{K}_{2,x_2}, \dots, \mathbf{K}_{L,x_L},
+                \end{align}$$
+                <p>the server can derive $\mathbf{p}_{\mathbf{x}_L}$ for its chosen public input $\mathbf{x}_L$, while the trusted party only had to publish the $2L$ preimages $\{\mathbf{K}_{i,0}, \mathbf{K}_{i,1}\}_{i \in [L]}$ rather than separate helper data for all $2^L$ possible inputs.</p>
+
+                <p>Once the final GGH15 encoding</p>
+                $$\begin{align}
+                    \mathbf{p}_{\mathbf{x}_L}
+                    = \underline{\left((\mathbf{d}, \mathbf{x}_{L}) \otimes \mathbf{s}_{\mathbf{x}_{L}}\right)\mathbf{B}_{L}}
+                \end{align}$$
+                <p>has been derived, the trusted party supplies two further preimages that convert it into the objects needed for circuit-specific decryption.</p>
+
+                <p>First, it provides a preimage $\mathbf{K}_{\mathrm{att}}$ whose target is chosen so that multiplying by it converts the GGH15 encoding into the desired <strong>input BGG+ encoding</strong>:</p>
+                $$\begin{align}
+                    \mathbf{c}_{\mathbf{x}_L}
+                    := \mathbf{p}_{\mathbf{x}_L}\mathbf{K}_{\mathrm{att}}
+                    = \underline{\mathbf{s}_{\mathbf{x}_L}\left(\mathbf{A} - (\mathbf{d}, \mathbf{x}_{L}) \otimes \mathbf{G}\right)}.
+                \end{align}$$
+                <p>So $\mathbf{K}_{\mathrm{att}}$ is the final projection from the GGH15 world into the BGG+ world.</p>
+
+                <p>Second, it provides another preimage, denoted here by $\mathbf{K}_{C}$, whose target is chosen so that multiplying by it extracts the mask corresponding to the output public key of the circuit $C_F$:</p>
+                $$\begin{align}
+                    \mathbf{v}_{C,\mathbf{x}_L}
+                    := \mathbf{p}_{\mathbf{x}_L}\mathbf{K}_{C}
+                    = \underline{\mathbf{s}_{\mathbf{x}_L}\mathbf{A}_{C_F}}.
+                \end{align}$$
+                <p>This is precisely the <strong>decoding key</strong> needed to decode the output BGG+ encoding obtained after evaluating the circuit $C_F$ on the input BGG+ encodings.</p>
+
+                <p>Putting everything together, the full process is as follows.</p>
+                <ol>
+                    <li>The trusted party publishes an initial GGH15 encoding $\mathbf{p}_{\epsilon}$ together with all the preimages needed for the subsequent transformations, namely the update preimages $\{\mathbf{K}_{i,0}, \mathbf{K}_{i,1}\}_{i \in [L]}$ as well as the final conversion preimages $\mathbf{K}_{\mathrm{att}}$ and $\mathbf{K}_{C}$.</li>
+                    <li>The server multiplies the appropriate preimages according to its public input bits, thereby performing <strong>input insertion</strong> and dynamically generating $\mathbf{p}_{\mathbf{x}_L}$.</li>
+                    <li>By multiplying $\mathbf{p}_{\mathbf{x}_L}$ by $\mathbf{K}_{\mathrm{att}}$ and $\mathbf{K}_{C}$, the server dynamically generates both the input BGG+ encodings and the circuit-specific decoding key.</li>
+                    <li>The server then evaluates, over the BGG+ encodings, the circuit $C_F$ that simulates FHE evaluation and FHE decryption.</li>
+                    <li>This produces an output BGG+ encoding of the decryption result, masked by the corresponding decoding key.</li>
+                    <li>Finally, the server removes that mask using the dynamically generated decoding key and recovers the plaintext decryption result.</li>
+                </ol>
+
+                <p>Therefore, the combination of <strong>GGH15 encodings and preimage products for input insertion</strong>, <strong>dynamic generation of input BGG+ encodings and circuit-specific decoding keys</strong>, and <strong>evaluation of FHE computation and decryption over BGG+ encodings</strong> yields exactly what we wanted: a <strong>circuit-specific decryption key for FHE</strong>. The trusted party only prepares setup-time helper data, while the server can later recover the output of the legitimate circuit non-interactively, and only for that circuit.</p>
+
+                <h2>Connection to iO</h2>
+                <p>At this point, the remaining step toward iO is conceptually simple. Concretely, we replace the fixed function by a <strong>universal circuit</strong>. Let $F$ be a universal circuit for the class of $L$-bit circuits to be obfuscated. In the iO setting, the trusted party—namely, the obfuscator—does not prepare helper data for a fixed hardcoded function alone. Instead, it additionally provides an FHE encryption of the particular $L$-bit circuit $G$ to be obfuscated, denoted by $\textsf{fhe}(G)$. Accordingly, the initial GGH15 encoding $\mathbf{p}_{\epsilon}$ is defined so as to encode $\textsf{fhe}(G)$ as part of its public payload together with the other hardcoded data. Then, after the evaluator inserts its input bits $\mathbf{x}_L$ through the preimage chain, the resulting BGG+ encoding contains both $\textsf{fhe}(G)$ and $\mathbf{x}_L$ under the input-dependent secret key $\mathbf{s}_{\mathbf{x}_L}$.</p>
+
+                <p>The circuit evaluated over the BGG+ encodings is then chosen to be a circuit $C_F$ that simulates the universal computation</p>
+                $$\begin{align}
+                    F(\textsf{fhe}(G), \mathbf{x}_L) = \textsf{fhe}(G(\mathbf{x}_L))
+                \end{align}$$
+                <p>by homomorphically evaluating the encrypted circuit $G$ on the public input $\mathbf{x}_L$. In other words, once the input insertion step has dynamically generated a BGG+ encoding of $(\mathbf{d}, \textsf{fhe}(G), \mathbf{x}_L)$, the subsequent evaluation over BGG+ encodings produces an encoding of the FHE ciphertext $\textsf{fhe}(G(\mathbf{x}_L))$, which can then be homomorphically decrypted with the decryption key $\mathbf{d}$ and decoded exactly as described above. Thus, the evaluator starts from helper data prepared by the obfuscator, inserts its own input $\mathbf{x}_L$, and finally recovers only the output $G(\mathbf{x}_L)$.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
