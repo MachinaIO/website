@@ -51,6 +51,7 @@
             <div class="post-title">HOW TO MAKE CIRCUIT-SPECIFIC DECRYPTION KEYS FOR FHE?: PART 3</div>
             <div class="post-date">2026-05-10</div>
             <div class="content">
+                <p>by Sora Suegami with review from Enrico Bottazzi and Nam Ngo</p>
                 <p>We finally discuss the final missing part for realizing a circuit-specific decryption key. We also show how this straightforwardly implies indistinguishability obfuscation (iO).</p>
 
                 <p>Recall that that missing part is a process to allow the server to insert some new public inputs, which are encrypted votes in the case of online voting, to the BGG+ encodings provided by the trusted party. For simplicity, we formalize this problem as follows: provided $L$-bit public inputs $\mathbf{x}_L \in \{0,1\}^{L}$ and some helper data that depends on private inputs $\mathbf{d} \in \{0,1\}^{K}$ but is independent of $\mathbf{x}_L$, the server should be able to obtain the BGG+ encodings of $(\mathbf{d}, \mathbf{x}_L)$:</p>
