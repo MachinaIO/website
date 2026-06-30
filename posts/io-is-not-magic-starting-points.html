@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machina iO - Blog Post</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="../favicon.ico" type="image/x-icon">
+
+    <!-- MathJax for LaTeX support -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        mjx-container[display="true"] {
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+        }
+
+        .content svg {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 1.5rem auto;
+        }
+
+        .content img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 1.5rem auto;
+        }
+
+        .content blockquote {
+            border-left: 3px solid #999;
+            color: #555;
+            margin: 1.5rem 0;
+            padding-left: 1rem;
+        }
+
+        .content table {
+            border-collapse: collapse;
+            display: block;
+            margin: 1.5rem 0;
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        .content th,
+        .content td {
+            border: 1px solid #999;
+            padding: 0.5rem 0.75rem;
+            vertical-align: top;
+        }
+
+        .content th {
+            background: #f0f0f0;
+            font-weight: 600;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <a href="../index.html">
+                    <img src="../logo.png" alt="Machina iO Logo">
+                </a>
+            </div>
+            <div class="nav">
+                <a href="../about.html">about</a>
+                <a href="../subscribe.html">subscribe</a>
+            </div>
+        </div>
+
+        <div class="post">
+            <div class="post-title">IO IS NOT MAGIC: STARTING POINTS FOR ZKP, FHE, AND MPC RESEARCHERS BUILDING PRACTICAL IO</div>
+            <div class="post-date">2026-07-01</div>
+            <div class="content">
+<p>by Sora Suegami and Nam Ngo</p>
+<p>Indistinguishability obfuscation (iO) is the endgame for Ethereum privacy. This makes it possible to build <a href="https://nakamotoinstitute.org/library/the-god-protocols/">"the God Protocols"</a> on Ethereum: trustless systems that can behave like a trusted third party. </p>
+<p>Unfortunately, iO is far from practical: traditional iO constructions require combinations of primitives so complex that even implementing them has been infeasible. <a href="https://vitalik.eth.limo/general/2026/06/29/obfuscation1.html">A recent post by Vitalik</a> describes this difficulty in more detail.</p>
+<p><a href="https://eprint.iacr.org/2025/236">Diamond iO</a>, our proposed construction, makes iO simple enough that <strong>its end-to-end performance can be concretely estimated</strong>. It removes a major existing bottleneck in traditional iO constructions by replacing it with simple matrix products, yielding an estimated speedup of more than $2^{118}$. Nonetheless, the remaining components are still far from practical—the end-to-end evaluation is estimated to require at least $10^{36}$ hours—and <strong>several challenges remain</strong> before Diamond iO can become practical.</p>
+<p>This article aims to demystify Diamond iO by breaking down how it works. It shows that <strong>iO is not magic: it is a collection of concrete challenges that the broader community can help solve</strong>. In particular, we hope this article serves as a starting point for researchers and engineers working on ZKP, FHE, and MPC to contribute to practical iO research.</p>
+<blockquote>
+<p>Strictly speaking, the security guaranteed by indistinguishability obfuscation for arbitrary programs is limited, and it is not always sufficient for every application. However, in a variant of the random oracle model, it can be upgraded to a stronger primitive called <a href="https://eprint.iacr.org/2022/1204">ideal obfuscation</a>. Informally, for most natural, non-contrived programs, ideal obfuscation can protect privacy as strongly as a trusted third party or an ideal TEE—without requiring any additional trusted party or trusted hardware, of course! In the rest of this article, we will not distinguish between indistinguishability obfuscation and ideal obfuscation, and will simply refer to both as iO.</p>
+</blockquote>
+<h2>Demystifying Diamond iO: Enforcing Computation on Encrypted Data, from Lattices to iO</h2>
+<p><svg viewBox="0 0 480 350" width="440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="115" y="44" text-anchor="middle" font-size="14" font-weight="bold">Enforced Computation</text>
+  <text x="365" y="34" text-anchor="middle" font-size="14" font-weight="bold">Computation on</text>
+  <text x="365" y="52" text-anchor="middle" font-size="14" font-weight="bold">Encrypted Data</text>
+  <circle cx="180" cy="185" r="125" fill="#4e79a7" fill-opacity="0.4" stroke="#2c4a6e" stroke-width="1.5"/>
+  <circle cx="300" cy="185" r="125" fill="#e8a23d" fill-opacity="0.4" stroke="#9c6a16" stroke-width="1.5"/>
+  <text x="110" y="192" text-anchor="middle" font-size="18">ZKP</text>
+  <text x="240" y="192" text-anchor="middle" font-size="18" font-weight="bold">iO</text>
+  <text x="370" y="192" text-anchor="middle" font-size="18">FHE</text>
+</svg></p>
+<p>If you are familiar with ZKPs or FHE, iO can be viewed as combining properties of both. Specifically:</p>
+<ul>
+<li>
+<p>(Enforced computation) As in ZKPs, iO forces an untrusted evaluator to <strong>correctly perform a computation according to a specified circuit</strong>. Otherwise, the evaluator obtains only a random and meaningless value.</p>
+</li>
+<li>
+<p>(Computation on encrypted data) As in FHE, iO allows an untrusted evaluator to perform computation on ciphertexts <strong>without revealing the encrypted private data</strong>.</p>
+</li>
+</ul>
+<p>Surprisingly, Diamond iO, our proposed lattice-based iO scheme, can be constructed in a highly intuitive way—conceptually in three steps in the evaluation—by combining FHE with lattice-based encodings, mainly <strong>BGG+ encodings</strong>. The following table compares properties provided by FHE and BGG+ encodings.</p>
+<table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>Enforced Computation</th>
+<th>Computation on Encrypted Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FHE</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>BGG+ Encoding</strong></td>
+<td>✅</td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<p>Therefore, <strong>if you are already familiar with lattice-based FHE or ZKPs, we believe that understanding Diamond iO should be relatively straightforward</strong>. In the following, rather than leaving the mechanism of iO as something magical, we explain how it can be realized simply as <em>a combination of matrix operations</em>.</p>
+<h3>The Core Primitive: BGG+ Encodings</h3>
+<p><strong>Definitions.</strong> The core primitive underlying Diamond iO is <a href="https://eprint.iacr.org/2014/356">BGG+ encodings</a>. These encodings are introduced to force the evaluator of the obfuscated circuit, who is an untrusted party, to perform computation along a specific circuit: if the evaluator computes correctly, they obtain the output of that circuit <strong>in plaintext</strong>; otherwise, they obtain a useless random value.</p>
+<p>Each BGG+ encoding is concretely defined as the following vector:
+$$\begin{align}
+    \mathbf{c}_{x} := \mathbf{s}(\mathbf{A} - x\mathbf{G}) + \mathbf{e}.
+\end{align}$$</p>
+<p>Here, we refer to each component as follows.</p>
+<ul>
+<li>
+<p>$\mathbf{s}$ is a vector of the secret.</p>
+</li>
+<li>
+<p>$\mathbf{A}$ is a matrix of the public key.</p>
+</li>
+<li>
+<p>$x$ is an integer of the value being encoded.</p>
+</li>
+<li>
+<p>$\mathbf{G}$ is a fixed matrix called gadget matrix, defined later.</p>
+</li>
+<li>
+<p>$\mathbf{e}$ is a vector of the small error, necessary for the LWE security.</p>
+</li>
+</ul>
+<p>In addition to this encoding, the evaluator can publicly know the public key, the value, and the gadget matrix, but cannot know the secret or the error.</p>
+<p>The evaluator holds such encodings separately for multiple different values $x_1, \dots, x_L$. All of these encodings share the same secret, but <strong>each has a distinct public key $\mathbf{A}_{i}$</strong>. Crucially, the public key can be also defined independently of the encoded value. Therefore, <strong>the obfuscator can know the public keys in advance</strong>, before knowing the values to be encoded, which are determined by the evaluator’s input to the obfuscated circuit.</p>
+<p><strong>Homomorphism.</strong> Similarly to FHE ciphertexts, BGG+ encodings are fully homomorphic. That is, given encodings of some values $x_i$ and $x_j$, the evaluator can compute valid encodings of the sum $x_i + x_j$ and the product $x_i x_j$, without knowing their secret $\mathbf{s}$ or errors $\mathbf{e}_i$.</p>
+<p>Furthermore, unlike FHE, BGG+ encodings are also <strong>homomorphic with respect to public keys</strong>: the public key appearing in the encoding after a homomorphic computation can be <strong>deterministically derived solely from the input public keys</strong>. Therefore, as long as the obfuscator knows the input public keys $\mathbf{A}_i$ and $\mathbf{A}_j$, it can compute the public key $\mathbf{A}_{i + j}$ corresponding to the addition result and the public key $\mathbf{A}_{i \times j}$ corresponding to the multiplication result in advance, without knowing their values or encodings.</p>
+<p>Let us now verify that such homomorphism indeed holds. Addition is always trivial in lattice cryptography:
+$$\begin{align}
+    \mathbf{c}_{i} + \mathbf{c}_{j} &= \left(\mathbf{s}(\mathbf{A}_i - x_i\mathbf{G}) + \mathbf{e}_i\right) + \left(\mathbf{s}(\mathbf{A}_j - x_j\mathbf{G}) + \mathbf{e}_j\right) \\
+    &= \mathbf{s}\left(\underbrace{(\mathbf{A}_i + \mathbf{A}_j)}_{=\mathbf{A}_{i+j}} - (x_i+x_j)\mathbf{G}\right) + \underbrace{(\mathbf{e}_i + \mathbf{e}_j)}_{bounded}.
+\end{align}$$
+When $\mathbf{A}_{i+j}:=\mathbf{A}_i + \mathbf{A}_j$, one can confirm that $\mathbf{c}_{i} + \mathbf{c}_{j}$ forms a valid BGG+ encoding of the sum $x_i+x_j$, especially because $\mathbf{e}_i + \mathbf{e}_j$ remains a small bounded error. Besides, $\mathbf{A}_{i+j}$ is derived solely from $\mathbf{A}_i$ and $\mathbf{A}_j$.</p>
+<p>Multiplication is always difficult in lattice cryptography. First of all, a naive multiplication, such as taking the inner product of two input encodings, does not form a valid encoding:
+$$\begin{align}
+    \mathbf{c}_{i} \cdot \mathbf{c}_{j} &= \left(\mathbf{s}(\mathbf{A}_i - x_i\mathbf{G}) + \mathbf{e}_i\right) \cdot \left(\mathbf{s}(\mathbf{A}_j - x_j\mathbf{G}) + \mathbf{e}_j\right)\\
+    &= \mathbf{s}\mathbf{A}_i \cdot \mathbf{s}\mathbf{A}_j + \mathbf{s}\mathbf{A}_i \cdot \left(-x_j\mathbf{s}\mathbf{G} + \mathbf{e}_j\right)\\
+    &+ \left(-x_i\mathbf{s}\mathbf{G} + \mathbf{e}_i\right) \cdot \mathbf{s}\mathbf{A}_j  + \left(-x_i\mathbf{s}\mathbf{G} + \mathbf{e}_i\right) \cdot \left(-x_j\mathbf{s}\mathbf{G} + \mathbf{e}_j\right) \\
+    &= \underbrace{\left(\mathbf{s}\mathbf{A}_i \cdot \mathbf{s}\mathbf{A}_j - \mathbf{s}\mathbf{A}_i \cdot x_j\mathbf{s}\mathbf{G} - x_i\mathbf{s}\mathbf{G} \cdot \mathbf{s}\mathbf{A}_j + x_i\mathbf{s}\mathbf{G} \cdot x_j \mathbf{s}\mathbf{G} \right)}_{\text{a quadratic expression in $\mathbf{s}$}} \\
+    &+ \underbrace{\left(\mathbf{s}\mathbf{A}_i \cdot \mathbf{e}_j + \mathbf{e}_i \cdot \mathbf{s}\mathbf{A}_j -x_i\mathbf{s}\mathbf{G} \cdot \mathbf{e}_j - \mathbf{e}_i \cdot x_j \mathbf{s}\mathbf{G} \right)}_{\text{a linear expression in $\mathbf{s}$}} + \mathbf{e}_i \cdot \mathbf{e}_j
+\end{align}$$</p>
+<p>Even setting aside the fact that this is no longer a vector but a scalar, it still does not form a valid BGG+ encoding for the following reasons. First, the output contains the quadratic expression in $\mathbf{s}$, which is not allowed in the valid form of the BGG+ encoding. Second, the linear expression in $\mathbf{s}$ depends on the errors $\mathbf{e}_i$ and $\mathbf{e}_j$.</p>
+<p>To avoid these issues, multiplication between encodings is defined as <em>a linear combination of the input encodings</em>. Before defining this operation, we introduce the definition of the gadget matrix, which we have postponed until now. </p>
+<p>Let $q$ be the modulus, $n$ be the lattice dimension, and $m:=n\lceil \log_2 q \rceil$. The gadget matrix $\mathbf{G} \in \mathbb{Z}_{q}^{n \times m}$ is defined by
+$$\begin{align}
+    \mathbf{G} &:= \mathbf{I}_{n} \otimes (1, \dots, 2^{\lceil \log_2 q \rceil-1}) \\
+    &= \begin{pmatrix}
+        (1, \dots, 2^{\lceil \log_2 q \rceil-1}) & \dots, & \mathbf{0}\\
+        \vdots & \ddots & \vdots \\
+        \mathbf{0} & \dots & (1, \dots, 2^{\lceil \log_2 q \rceil-1})
+    \end{pmatrix}.
+\end{align}$$</p>
+<p>For any matrix $\mathbf{A} \in \mathbb{Z}_{q}^{n \times m}$, a gadget-decomposed matrix $\mathbf{G}^{-1}(\mathbf{A}) \in \{0,1\}^{m \times m}$ is defined as a bit-decomposed matrix of $\mathbf{A}$, where each column $\mathbf{a}_i \in \mathbb{Z}_{q}^{n}$ of $\mathbf{A}$ is expanded to the bit-decomposed vector $\textsf{bits}(\mathbf{a}_i) \in \{0,1\}^{m}$. Then we have
+$$\begin{align}
+    \mathbf{G} \mathbf{G}^{-1}(\mathbf{A}) = \mathbf{A}.
+\end{align}$$</p>
+<p>Using the gadget-decomposed matrix, one can define the homomorphic multiplication between BGG+ encodings as follows:
+$$\begin{align}
+    \mathbf{c}_{i \times j} =&\, \mathbf{c}_{i}\mathbf{G}^{-1}(\mathbf{A}_j) + x_i\mathbf{c}_{j}\\
+    =&\, \left(\mathbf{s}(\mathbf{A}_i - x_i\mathbf{G}) + \mathbf{e}_i\right)\mathbf{G}^{-1}(\mathbf{A}_j) + x_i\left(\mathbf{s}(\mathbf{A}_j - x_j\mathbf{G}) + \mathbf{e}_j\right)\\
+    =&\, \left(\mathbf{s}\mathbf{A}_i\mathbf{G}^{-1}(\mathbf{A}_j) - x_i\mathbf{s}\mathbf{A}_j + \mathbf{e}_i\mathbf{G}^{-1}(\mathbf{A}_j) \right) + \left(x_i\mathbf{s}\mathbf{A}_j - x_ix_j\mathbf{s}\mathbf{G} + x_i\mathbf{e}_j\right)\\
+    =&\, \mathbf{s}\left(\underbrace{\mathbf{A}_i\mathbf{G}^{-1}(\mathbf{A}_j)}_{=\mathbf{A}_{i \times j}} - x_ix_j\mathbf{G}\right) + \underbrace{(\mathbf{e}_i\mathbf{G}^{-1}(\mathbf{A}_j) + x_i\mathbf{e}_j)}_{bounded}.
+\end{align}$$</p>
+<p>When $\mathbf{A}_{i \times j} := \mathbf{A}_i\mathbf{G}^{-1}(\mathbf{A}_j)$, one can confirm that $\mathbf{c}_{i \times j}$ forms a valid BGG+ encoding of the product $x_ix_j$, where the above remains a small bounded error <em>if $x_i$ is small (e.g., bit)</em> because $\mathbf{G}^{-1}(\mathbf{A}_j)$ is a bit matrix. Besides, $\mathbf{A}_{i \times j}$ is derived solely from $\mathbf{A}_i$ and $\mathbf{A}_j$.</p>
+<p><strong>Circuit-specific decoding key.</strong> It is now time to reveal why BGG+ encodings can force the evaluator to compute a specific circuit. Let the product of the values carried by wires $i$ and $j$ be one of the circuit outputs. As discussed above, the evaluator can compute
+$$
+    \mathbf{c}_{i \times j} = \mathbf{s}\left(\mathbf{A}_{i \times j} - x_ix_j\mathbf{G}\right) + \mathbf{e}_{i \times j},
+$$
+where $\mathbf{e}_{i \times j} := \mathbf{e}_i\mathbf{G}^{-1}(\mathbf{A}_j) + x_i\mathbf{e}_j$. Here, the obfuscator wants to enable <strong>the evaluator to decode $\mathbf{c}_{i \times j}$ and obtain the product $x_i x_j$</strong>, while revealing no information about the values encoded in any other encodings. </p>
+<blockquote>
+<p>One might think that this is pointless, since the evaluator already knows the encoded input values and can therefore compute the product directly. In fact, the decoding procedure described below can also be applied in settings where some of the encoded values are private and the evaluator does not know the product. We will later discuss how multiplication involving private values can be handled over encodings.</p>
+</blockquote>
+<p>From the above equality for $\mathbf{c}_{i \times j}$, one can observe that the product $x_ix_j$ appearing in the second term is masked by the first term, $\mathbf{s}\mathbf{A}_{i \times j}$. For now, ignore the fact that the second term is multiplied by $\mathbf{s}$ and that a small error still remains. Therefore, <strong>if the first term is available separately as the circuit-specific decoding key, the evaluator can extract the output from the output encoding</strong>.</p>
+<p>At a high level, Diamond iO uses BGG+ encodings as follows.</p>
+<ul>
+<li>
+<p>The obfuscator who wants to obfuscate a circuit $C$ samples the input public keys $(\mathbf{A}_1, \dots, \mathbf{A}_L)$ and computes the output public keys, e.g., $\mathbf{A}_{i \times j}$. This is possible since <strong>the public key for each gate output depends only on the input public keys</strong>. Then the obfuscator provides a helper data that allows the evaluator to obtain</p>
+<ul>
+<li>the input encodings $(\mathbf{c}_{1}, \dots, \mathbf{c}_{L})$ for the evaluator's input bits $\mathbf{x} := (x_1, \dots, x_L) \in \{0,1\}^{L}$,</li>
+<li>the circuit-specific decoding key for the output public keys.</li>
+</ul>
+<p>We later explain how this helper data is built.  </p>
+</li>
+<li>
+<p>The evaluator obtains the output $C(\mathbf{x})$ in three steps:</p>
+<ol>
+<li>Use the helper data to obtain the input encodings.</li>
+<li>Homomorphically compute the output BGG+ encodings.</li>
+<li>Use the helper data to obtain the circuit-specific decoding key, allowing the evaluator to obtain the circuit outputs in plaintext.</li>
+</ol>
+</li>
+</ul>
+<p>Unfortunately, the above construction still has two problems. Diamond iO resolves them by combining BGG+ encodings with the two remaining building blocks, namely FHE and GGH15 encodings. Here, we only explain these problems and the high-level ideas behind their solutions; for the details, please refer to our blog posts.</p>
+<ul>
+<li>
+<p>Problem 1. Homomorphic multiplication between BGG+ encodings requires the evaluator to know the left-hand-side value $x_i$ in plaintext. This implies that BGG+ encodings cannot straightforwardly handle the multiplication between private values.</p>
+<ul>
+<li>This problem is resolved by using FHE together with BGG+ encodings. Concretely, we encrypt the private values under FHE and encode the resulting ciphertexts as public values in the input BGG+ encodings. Then, we <strong>evaluate the FHE homomorphic evaluation and decryption over BGG+ encodings</strong>. A key question here is how to delegate the FHE decryption key to the (trustless) evaluator. The obfuscator simply provides the encodings of the key without providing the key itself for the evaluator. This encoding can still be used for a <em>single</em> multiplication by an encoding of a public value since the encoding multiplication requires only one of the two input values in plaintext. As a result, <strong>FHE decryption with the noise left intact can be performed over the encodings without revealing the key</strong>. Please refer to <a href="https://machina-io.com/posts/circuit-specific-decryption-keys-for-fhe-part-2.html">this post</a> or <a href="https://eprint.iacr.org/2024/1719">the AKY24 FE paper</a> for more details.</li>
+</ul>
+</li>
+<li>
+<p>Problem 2. How can the obfuscator prepare the helper data that allows outputting the input BGG+ encodings and the circuit-specific decoding key for arbitrary input $\mathbf{x} \in \{0,1\}^{L}$. There are two difficulties. First, both outputs depend on the secret $\mathbf{s}$, which must be distinct for each input $\mathbf{x}$. Second, the helper data needs to return outputs for $2^L$ possible patterns, while both its size and the time required for the obfuscator to prepare it must be bounded by a polynomial in $L$.</p>
+<ul>
+<li>Diamond iO solves this problem by making it possible to represent these outputs as products of secret matrices, each of which depends only on a single input bit $x_i$. The obfuscator protects these secret matrices using another lattice encoding, called <a href="https://eprint.iacr.org/2018/360">GGH15 encodings</a>, and publishes them as helper data. The evaluator selects some of the given matrices according to their input $\mathbf{x}$, and simply multiplies them together. <strong>This simple matrix multiplication yields the required input encodings and decoding key for $\mathbf{x}$</strong>, which is a novel and key technique that enables Diamond iO to significantly improve efficiency. Please refer to <a href="https://machina-io.com/posts/circuit-specific-decryption-keys-for-fhe-part-3.html">this post</a> or <a href="https://eprint.iacr.org/2025/236">the Diamond iO paper</a> for more details.</li>
+</ul>
+</li>
+</ul>
+<h2>Help Push Diamond iO Toward Practice: Starting Points for Researchers in ZKP, FHE, MPC, and Beyond</h2>
+<h3>The Remaining Bottleneck: FHE Evaluation over BGG+ Encodings</h3>
+<blockquote>
+<p>Challenge 1: Practical implementation of FHE evaluation over BGG+ encodings</p>
+</blockquote>
+<p><strong>Diamond iO is still not practical, because FHE evaluation over BGG+ encodings remains the major efficiency bottleneck and requires prohibitively large computation.</strong> We introduced many new optimizations and succeeded in implementing them <em>within the range of practical lattice parameters</em>, described in <a href="https://machina-io.com/posts/circuit-specific-decryption-keys-for-fhe-part-4.html">this post</a>. Nevertheless, it is estimated that computing a single FHE multiplication over BGG+ encodings would require more than $10^{16}$ hours on a single GPU.</p>
+<p>Even worse, the Diamond iO construction must evaluate, over BGG+ encodings, not just a few FHE multiplications, but a homomorphic PRF: namely, the homomorphic evaluation of a pseudorandom function under an encrypted key. This process accounts for more than 99% of the total evaluation time of Diamond iO, and is estimated to require more than $10^{36}$ hours on a single GPU.</p>
+<p>In this sense, the central bottleneck in Diamond iO is <strong>not a fundamental impossibility result, but the current lack of scalability in the circuit sizes</strong> that can be practically evaluated over BGG+ encodings. Once this scalability reaches a critical threshold—such as the circuit size required for <a href="https://eprint.iacr.org/2023/1716.pdf">a bootstrapping method of BGG+ encodings</a>—we should be able to evaluate arbitrarily complex circuits without increasing the parameters further. This mirrors the historical trajectory of FHE research, where sustained progress eventually made FHE bootstrapping practical to a meaningful extent. We therefore believe that lattice and FHE researchers can play a major role in addressing this challenge.</p>
+<h3>Input Scaling</h3>
+<blockquote>
+<p>Challenge 2: Input-size scaling without exponential noise growth</p>
+</blockquote>
+<p>Another limitation of Diamond iO is its inability to support large input lengths efficiently. Here, “input length” refers to the input size of the circuit being obfuscated, rather than the size of the circuit itself. </p>
+<p>The main reason is that, for the input size $L$, evaluation requires multiplying the LWE noise by $L$ matrices sequentially. This causes <strong>the noise bound to grow exponentially with $L$</strong>, which in turn forces the modulus $q$ to grow exponentially as well. Maintaining the same security level for larger $q$ requires increasing the lattice dimension $n$ accordingly, and the overall evaluation cost eventually grows by at least roughly $L^{10}$.</p>
+<p>Our solution to this limitation is to <strong>reset the accumulated noise to a bounded level after every $\ell$ matrix multiplications</strong>, where $\ell$ is a constant smaller than $L$. This is essentially the same approach as bootstrapping in FHE. However, implementing this idea requires evaluating a homomorphic PRF over BGG+ encodings, which, as discussed above, is currently the main bottleneck. We believe that exploring how to scale the input size <em>without relying on the homomorphic PRF</em> would be an interesting research direction for lattice and FHE researchers.</p>
+<h3>Non-Standard Lattice Assumptions Underlying Diamond iO</h3>
+<blockquote>
+<p>Challenge 3: Cryptanalysis of evasive and all-product LWE assumptions</p>
+</blockquote>
+<p>Diamond iO relies on two non-standard lattice assumptions: evasive LWE and all-product LWE. The former was introduced in <a href="https://eprint.iacr.org/2023/906">Wee22</a> and has been used not only for iO but also for simpler primitives such as ABE, FE, and witness encryption. However, it is a relatively non-falsifiable assumption in the sense that its concrete statement depends on a scheme-specific class of samplers, and several works have exhibited counterexample samplers for specific formulations of evasive LWE. A caveat is that these counterexamples should not be interpreted as attacks on the particular samplers used in Diamond iO, nor as attacks on the Diamond iO construction itself.</p>
+<p>The all-product LWE assumption is more falsifiable than evasive LWE, but it is a new assumption that we introduced. We are still actively analyzing it, and to the best of our knowledge, no attacks have been found for at least a year since it was first proposed. We believe that both assumptions provide interesting targets for further cryptanalysis.</p>
+<p>We also believe that this kind of <strong>cryptanalysis is important not only for security, but also for efficiency</strong>. A deeper understanding of lattice assumptions riskier than standard LWE—especially assumptions that publish additional auxiliary data to make the evaluator’s, and therefore the adversary’s, computation more efficient—could clarify which kinds of leakage are benign and which are dangerous. This may allow us to introduce bolder but still plausible assumptions that substantially reduce the computational cost of Diamond iO.</p>
+<h3>(S)NARK proof verification inside BGG+ encodings</h3>
+<blockquote>
+<p>Challenge 4: Efficient (S)NARK proof verification over BGG+ encodings</p>
+</blockquote>
+<p>An orthogonal but still important workstream is the construction of the circuit being obfuscated. Specifically, we are interested in <strong>verifying a given (S)NARK proof inside the obfuscated circuit</strong>. This immediately enables strong applications, including</p>
+<ul>
+<li>
+<p>witness encryption by obfuscating a <a href="https://eprint.iacr.org/2017/276.pdf">null circuit</a> into which an encryptor's message is hardcoded. The obfuscated circuit outputs the message if and only if the given proof is valid.</p>
+</li>
+<li>
+<p><a href="https://eprint.iacr.org/2025/2139.pdf">Root iO</a>, a single obfuscation of an application-agnostic circuit that is available
+to all privacy-preserving applications on Ethereum. The obfuscated circuit takes FHE ciphertexts together with a SNARK proof that a specified Ethereum smart contract has authorized their decryption, and outputs their plaintexts only if the proof is valid.</p>
+</li>
+</ul>
+<p>In the Diamond iO construction, BGG+ encodings are generated for both the ciphertext and the proof, and the proof verification is carried out over these encodings. Crucially, if the proof is publicly verifiable, then <strong>the proof verification need not be wrapped once again inside FHE over BGG+ encodings</strong>; instead, it can be evaluated directly on the encodings.</p>
+<p>We believe this opens a concrete research direction for ZKP researchers and engineers: designing proof systems whose verification is cheap to perform over BGG+ encodings—namely, verification procedures with low multiplicative depth and simple arithmetic operations. In this setting, reducing verification depth is especially valuable, much more so than in the usual setting, because the modulus $q$ grows exponentially with the depth. Moreover, it is also important to reduce the proof size, which dominates the size of the input to the obfuscated circuit. As explained in Challenge 2, scaling the input size is one of the hardest tasks in Diamond iO.</p>
+<h3>Distributed Obfuscation</h3>
+<blockquote>
+<p>Challenge 5: Distributed obfuscation without scaling the obfuscated circuit size with the committee size</p>
+</blockquote>
+<p>We have not yet solved the issue that there is a single obfuscator who learns the secrets hardcoded into the obfuscated circuit, which makes the approach unsuitable for Ethereum use cases. This is why we want <strong>distributed obfuscation</strong>, where $N$ parties jointly perform the obfuscation and no single party learns the secrets unless all of them collude.</p>
+<p>In what follows, we assume that the only value hidden by the obfuscation is some hardcoded secret key, such as an FHE decryption key. The rest of the circuit’s logic may be public—or should even be public to enable public verifiability.</p>
+<p>A naive solution is as follows. The $N$ parties first run a DKG protocol to generate secret shares of the hardcoded secret key, together with the corresponding public key. Each party then independently generates an obfuscation that hardcodes only its own share. The evaluator can obtain partial decryptions by evaluating each party’s obfuscation, and then recover the plaintext by combining all of these partial decryptions.</p>
+<p>However, this approach is inefficient: the total obfuscated size and the evaluator’s computation both grow linearly with the number of parties $N$. We therefore want a solution in which <strong>these costs are independent of $N$</strong>. In the case of Diamond iO, such a solution would likely rely on several building blocks: DKG for LWE secret shares, MPC for matrix operations, and distributed lattice preimage sampling. Fortunately, these are all topics that have been studied for many years in threshold (lattice) cryptography. We therefore believe that this is a problem to which MPC researchers can make substantial contributions.</p>
+<h3>Summary</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Challenge</th>
+<th>Urgency</th>
+<th>Who to tackle?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>C1</strong></td>
+<td>Practical implementation of FHE evaluation over BGG+ encodings</td>
+<td>High</td>
+<td>lattice (including FHE) researchers</td>
+</tr>
+<tr>
+<td><strong>C2</strong></td>
+<td>Input-size scaling without exponential noise growth</td>
+<td>High</td>
+<td>lattice (including FHE) researchers</td>
+</tr>
+<tr>
+<td><strong>C3</strong></td>
+<td>Cryptanalysis of evasive and all-product LWE assumptions</td>
+<td>Medium</td>
+<td>cryptanalysts</td>
+</tr>
+<tr>
+<td><strong>C4</strong></td>
+<td>Efficient (S)NARK verification over BGG+ encodings</td>
+<td>Medium</td>
+<td>ZKP researchers</td>
+</tr>
+<tr>
+<td><strong>C5</strong></td>
+<td>Distributed obfuscation without scaling the obfuscated circuit size with the committee size</td>
+<td>Low</td>
+<td>lattice or MPC researchers</td>
+</tr>
+</tbody>
+</table>
+<h2>ObfusBench: A Coordination Hub for Practical iO</h2>
+<p>To support this effort, we are building <strong><a href="https://sorasuegami.github.io/obfusbench">ObfusBench</a></strong>, a public leaderboard and obstacle tracker for monitoring progress in concrete iO efficiency.</p>
+<p><strong>What do we have so far?</strong> For each lattice-based iO construction, we implemented the obfuscation of a PRF with 110 input bits and reported <em>estimates</em> of the end-to-end performance. These remain estimates because executing the full end-to-end procedure with currently realistic GPU resources would still be prohibitively expensive in both time and cost. </p>
+<p>However, <strong>the lattice parameters used here are ones that we believe satisfy correctness for the full end-to-end procedure</strong>—or at least, ones for which we are not knowingly ignoring noise growth in any component. We also confirmed that the lattice estimator reports at least 100 bits of security. This is the most important—and most fundamental—difference from <a href="https://machina-io.com/posts/hello_world_first.html">our first benchmark</a>.</p>
+<p>Concretely, ObfusBench shows the following metrics.</p>
+<ul>
+<li>
+<p><strong>total obfuscation/evaluation time (and their live GPU costs).</strong> Estimates of the total running time required to execute the full obfuscation and evaluation procedures on a single GPU. They are obtained by measuring the GPU runtime of several unit computational tasks, multiplying each by the corresponding number of invocations, and summing the resulting costs. The live GPU costs are computed by multiplying the estimated total running time by the live hourly cost of the GPU used for the measurements.</p>
+</li>
+<li>
+<p><strong>obfuscation size.</strong> Estimated data size of the obfuscated circuit.</p>
+</li>
+<li>
+<p><strong>obfuscation/evaluation latency.</strong> Estimated latency required to execute the full obfuscation and evaluation procedures on a sufficiently large number of GPUs. These estimates are computed assuming that the procedures are parallelized across multiple GPUs as much as possible; for example, multiple unit computational tasks are executed concurrently on different GPUs.</p>
+</li>
+</ul>
+<p>These estimates are visualized by graphs.
+<img alt="eval-total-time" src="https://hackmd.io/_uploads/BJXv2PJQzg.png" />
+<img alt="obfuscation-size" src="https://hackmd.io/_uploads/ByH_nPk7zx.png" />
+<img alt="eval-latency" src="https://hackmd.io/_uploads/r1lFY3wJmMe.png" /></p>
+<p>Moreover, by clicking on each implementation listed on the leaderboard, you can view the following detailed information about it.
+<img alt="leaderboard" src="https://hackmd.io/_uploads/SJqDaP1XGl.png" /></p>
+<ul>
+<li>
+<p><strong>metadata.</strong> This includes the implemented iO scheme’s authors and paper link, the implementers and implementation link, and the record submission date.</p>
+</li>
+<li>
+<p><strong>device.</strong> The GPU type used for runtime measurements. Generally, the larger the peak VRAM required to execute a unit computational task, the more expensive the required GPU.</p>
+</li>
+<li>
+<p><strong>breakdown</strong> of the total obfuscation and evaluation times, as well as the obfuscated circuit size. We believe this is essential to clarify bottlenecks.
+<img alt="breakdown" src="https://hackmd.io/_uploads/Hkw61_ymGg.png" /></p>
+</li>
+</ul>
+<p><strong>ObfusBench = coordinator.</strong> We hope ObfusBench can serve as a coordinator: when researchers improve individual building blocks within the vast overall iO construction, those improvements will ultimately be reflected in the end-to-end performance evaluation under the same framework. By making these changes traceable to everyone, ObfusBench can <strong>attribute each piece of progress to the researchers who contributed it</strong>.</p>
+<p>Anyone can apply to have a new iO implementation listed on ObfusBench by opening a PR to <a href="https://github.com/SoraSuegami/obfusbench">the ObfusBench repository</a> that adds a single yaml file in <a href="https://github.com/SoraSuegami/obfusbench/blob/main/CONTRIBUTING.md">the specified format</a>. We will review the submission and accept it if the measurement methodology and security proof of the implemented iO scheme appear sound.</p>
+<p>If you want to improve an implementation based on Diamond iO, we recommend building on <a href="https://github.com/MachinaIO/mxx">the mxx library</a>, which includes primitive-level lattice operations, BGG+ encodings, and an implementation of Diamond iO. That said, the current Diamond iO implementation is still somewhat messy and difficult to modify component by component. We are therefore working to clean up the implementation so that each component can be understood and modified <strong>without needing to understand the entire system</strong>.</p>
+<p>An ultimate goal of ObfusBench is to evaluate performance on interesting Ethereum applications that would become maximally trustless through iO. To do so, however, we need to solve at least Challenge 4, which in turn requires solving Challenges 1 and 2 first. In particular, if Challenges 2 and 4 become implementable with practical lattice parameters, then even if completing the full computation would still take a prohibitively long time, we may at least be able to estimate the performance of such applications.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
